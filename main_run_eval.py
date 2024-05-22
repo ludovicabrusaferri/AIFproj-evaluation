@@ -22,7 +22,7 @@ subjects = list(range(num_subjects))
 num_values = np.loadtxt(os.path.join(true_input, '0.txt')).shape[0]
 
 #simulateData = False  # Change to True if you want to simulate data
-calculateTrueVT =False # This calculates Vt first
+calculateTrueVT =True # This calculates Vt first
 calculateVT = True# This calculates Vt first
 do_eval = False # This runs the evaluation on calculated Vt
 
@@ -43,7 +43,7 @@ do_eval = False # This runs the evaluation on calculated Vt
 if calculateTrueVT:
     plot_vt = False
     methods = ['TRUE']  # Add 'TRUE' to the list of methods
-    output_directory = "{0}/{1}/".format(projectdir, 'VtsOUT')
+    output_directory = "{0}/{1}/{2}/{3}".format(workdir, 'OUT', dataset, 'VtsOUT')
 
     for method in methods:
         method_output_directory = "{0}/{1}".format(output_directory, method)
@@ -61,7 +61,7 @@ if calculateTrueVT:
 if calculateVT:
     plot_vt = False
     methods = ['AIF']  # Add 'TRUE' to the list of methods
-    output_directory = "{0}/{1}/".format(projectdir, 'VtsOUT')
+    output_directory = "{0}/{1}/{2}/{3}".format(workdir, 'OUT', dataset, 'VtsOUT')
 
     for method in methods:
         method_output_directory = "{0}/{1}".format(output_directory, method)
@@ -80,8 +80,8 @@ if do_eval:
 
 # Example usage
 subject = 15
-path1 = '/Users/e410377/Desktop/AIFproj-evaluation/ReformattedAIDataMarco/VtsOUT/AIF'
-path2 = '/Users/e410377/Desktop/AIFproj-evaluation/ReformattedAIDataMarco/VtsOUT/TRUE'
+path1 = "{0}/{1}/{2}/{3}".format(workdir, 'OUT', dataset, 'VtsOUT/AIF')
+path2 = "{0}/{1}/{2}/{3}".format(workdir, 'OUT', dataset, 'VtsOUT/TRUE')
 
 plot_correlation_with_regression_line(subject, path1, path2)
 
