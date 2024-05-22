@@ -5,10 +5,12 @@ np.random.seed(42)
 
 # Set paths
 dataset="ReformattedAIDataMarco"
+methodest="AIF"
 input_path = "{0}/{1}/".format(os.path.dirname(os.getcwd()),"/Ludo/AlexLudo/")
 input_path = "{0}/{1}/{2}".format(input_path, dataset, "patient_data")
 workdir = "{0}/{1}/".format(os.path.dirname(os.getcwd()),"AIFproj-evaluation")
 projectdir = "{0}/{1}/".format(workdir, dataset)
+predicted_input = "/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedAIDataMarco/RESULTS/metabolite_corrector_aif/test/15/"
 
 true_input = "{0}/{1}/".format(input_path, "/metabolite_corrected_signal_data/")
 tac_directory = "{0}/{1}/".format(input_path, "/time_activity_curves/")
@@ -22,7 +24,7 @@ subjects = list(range(num_subjects))
 num_values = np.loadtxt(os.path.join(true_input, '0.txt')).shape[0]
 
 #simulateData = False  # Change to True if you want to simulate data
-calculateTrueVT =True # This calculates Vt first
+calculateTrueVT = False # This calculates Vt first
 calculateVT = True# This calculates Vt first
 do_eval = False # This runs the evaluation on calculated Vt
 
@@ -52,15 +54,15 @@ if calculateTrueVT:
             os.makedirs(method_output_directory)
             os.makedirs(os.path.join(method_output_directory, 'Plots'))
 
-        predicted_input = true_input
+        input = true_input
 
-        run_calculate_VT(method, true_input, predicted_input, method_output_directory, petframestartstop, tac_directory, subjects, plot_vt)
+        run_calculate_VT(method, input, method_output_directory, petframestartstop, tac_directory, subjects, plot_vt)
 
 
 # Calculate VT
 if calculateVT:
     plot_vt = False
-    methods = ['AIF']  # Add 'TRUE' to the list of methods
+    methods = [methodest]  # Add 'TRUE' to the list of methods
     output_directory = "{0}/{1}/{2}/{3}".format(workdir, 'OUT', dataset, 'VtsOUT')
 
     for method in methods:
@@ -70,19 +72,16 @@ if calculateVT:
             os.makedirs(method_output_directory)
             os.makedirs(os.path.join(method_output_directory, 'Plots'))
 
-        predicted_input = "/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedAIDataMarco/RESULTS/metabolite_corrector_aif/test/"
+        input = predicted_input
 
-        run_calculate_VT(method, true_input, predicted_input, method_output_directory, petframestartstop, tac_directory, subjects, plot_vt)
+        run_calculate_VT(method, input, method_output_directory, petframestartstop, tac_directory, subjects, plot_vt)
 
-# Evaluate
-if do_eval:
-    run_evaluation(projectdir, num_subjects, 'TRUE', 'AIF')
 
 # Example usage
 subject = 15
-path1 = "{0}/{1}/{2}/{3}".format(workdir, 'OUT', dataset, 'VtsOUT/AIF')
+path1 = "{0}/{1}/{2}/{3}/{4}".format(workdir, 'OUT', dataset, 'VtsOUT/' , methodest)
 path2 = "{0}/{1}/{2}/{3}".format(workdir, 'OUT', dataset, 'VtsOUT/TRUE')
-
+print(path1)
 plot_correlation_with_regression_line(subject, path1, path2)
 
 print('DONE')
