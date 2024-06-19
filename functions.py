@@ -80,6 +80,12 @@ def calculate_logan_vt(frame_time_filename, reference_filename, target_filename,
     X_matrix = np.column_stack([int_ref / target_tac, intercept])
     Y_vector = int_target / target_tac
 
+    for i in range(2):
+        if X_matrix[i, 0] > 150 or Y_vector[i] > 150:
+            print("I AM HERE")
+            X_matrix[i, 0] = np.nan
+            Y_vector[i] = np.nan
+
     tstar_index = np.argmax(time >= tstar)
     X_selected = X_matrix[tstar_index:, :]
     Y_selected = Y_vector[tstar_index:]
@@ -159,7 +165,7 @@ def run_simulate_data(true_input, predicted_input, num_subjects, noise_level):
     plt.show()
 
 
-def run_calculate_VT(method, true_input, predicted_input, output_directory, petframestartstop, tac_directory, subjects,
+def run_calculate_VT(method, input, output_directory, petframestartstop, tac_directory, subjects,
                      plot_vt):
     for i in subjects:
         print(f'============ SUBJ {i} and i: {i} \n\n =======\n')
@@ -167,12 +173,12 @@ def run_calculate_VT(method, true_input, predicted_input, output_directory, petf
         frame_time_fn = os.path.join(petframestartstop, f'{i}.txt')
 
         # Use a different variable for the loop iteration
-        current_predicted_input = os.path.join(predicted_input, f'{i}')
+        current_predicted_input = os.path.join(input, f'{i}')
 
         if method == 'AIF':
-            plasma_lin_filename = os.path.join(current_predicted_input, f'{i}_mean.txt')
-        elif method == 'TRUE':
-            plasma_lin_filename = os.path.join(true_input, f'{i}.txt')
+            plasma_lin_filename = os.path.join(input, f'{i}.txt')
+        else:
+            plasma_lin_filename = os.path.join(input, f'{i}_mean.txt')
 
         # Check if plasma_lin_filename exists
         if not os.path.exists(plasma_lin_filename):

@@ -7,12 +7,27 @@ project='/ReformattedAIDataMarco/';
 %addpath(genpath('/Users/e410377/Desktop/PETAnalysisPaper/utility'));
 workdir = path;
 script_directory = '/Users/e410377/Desktop/AIFproj-evaluation/';
+predicted='AIF';
 
+if strcmp(predicted,'AEIF')
+    aif_input = [path, project, '/RESULTS/metabolite_corrector_aeif/test/'];
+elseif strcmp(predicted,'AIF')
+    aif_input = [path, project, 'RESULTSNEW/metabolite_corrector_aif/test/'];
+    subject = 15;
+    var2=importdata(fullfile(aif_input,sprintf('%d',subject),[sprintf('%d',subject), '_mean.txt']));
+elseif strcmp(predicted,'IDIF')
+    aif_input = [path, project, '/OLD/metabolite_corrector_idif/test/'];
+elseif strcmp(predicted,'MICsub')
+    aif_input = [path, project, '/OLD/MICsub/'];
+    subject = 9;
+    var2=importdata(fullfile(aif_input,[sprintf('%d',subject), '_mean.txt']));
+end
 
 true_input = [path, project, '/patient_data/metabolite_corrected_signal_data'];
 tac_directory = [path ,project, '/patient_data/time_activity_curves/'];
 petframestartstop = [path, project, '/patient_data/PETframestartstop'];
-aif_input = [path, project, '/RESULTS/metabolite_corrector_aif/test/'];
+
+
 fileList = dir(fullfile(true_input, '*.txt'));
 % Determine the number of subjects based on the number of files
 num_subjects = numel(fileList); 
@@ -20,14 +35,23 @@ subjects = 0:num_subjects-1; % Make a list from 0 to 51
 num_values = size(load(fullfile(true_input, '0.txt')),1); % Number of values in each file
 
 
-calculatetrueVT = true;
+calculatetrueVT = false;
 calculateVt=true;
 
-subject = 15;
 
 
+var1=importdata(fullfile(true_input,[sprintf('%d',subject), '.txt']));
 
 
+figure(11)
+plot(var1,'LineWidth',2)
+hold on
+plot(var2,'--','LineWidth',2)
+legend('true','estimated')
+hold off
+set(gca,'FontSize',20)
+set(gcf,'Color','w')
+%%
 %% DO VT
 
 if calculatetrueVT
@@ -47,7 +71,7 @@ end
 
 if calculateVt
     plotvt=false;
-    method = {'AIF'};
+    method = {predicted};
     for k = method
         current_method = k{1};
         output_directory = [script_directory ,'OUT',project,'/VtsOUT/', current_method];
@@ -115,7 +139,8 @@ function plot_correlation_with_regression_line(subject, path1, path2)
     xlabel('Values from first data set');
     ylabel('Values from second data set');
     title(sprintf('Scatter plot with regression line for subject %d', subject));
-
+    set(gca,'FontSize',20)
+    set(gcf,'Color','w')
     hold off;
 end
 %% DO EVAL
@@ -125,10 +150,12 @@ function run_calculate_VT(method,true_input,output_directory, petframestartstop,
         disp(['============ SUBJ ', num2str(i), ' and i: ', num2str(i), ' \n\n =======\n']);
         tstar=15;
         frame_time_fn = fullfile(petframestartstop, [num2str(i), '.txt']);
-        if strcmp(method, 'AIF')
-            plasma_Lin_filename = fullfile(true_input, num2str(i),[num2str(i), '_mean.txt']);
-        elseif strcmp(method, 'TRUE')
+        if strcmp(method, 'TRUE')
             plasma_Lin_filename = fullfile(true_input, [num2str(i), '.txt']);
+        elseif strcmp(method, 'MICsub')
+            plasma_Lin_filename = fullfile(true_input,[num2str(i), '_mean.txt']);
+        else
+            plasma_Lin_filename = fullfile(true_input, num2str(i),[num2str(i), '_mean.txt']);
         end
     
          % Check if the plasma_Lin_filename exists
@@ -191,12 +218,22 @@ function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target
     
     %% AVOIDINIG DIVISION BY ZERO
     for i = 1:2
-        if X_matrix(i) > 150 || Y_vector(i) > 150
+        if X_matrix(i) > 150 || Y_vector(i) > 150 
             fprintf("I AM HERE")
             X_matrix(i) = NaN;
             Y_vector(i) = NaN;
         end
     end
+
+    for i = 1:size(X_matrix,1)
+        if X_matrix(i) < 0 || Y_vector(i) < 0
+            fprintf("I AM HERE")
+            X_matrix(i) = NaN;
+            Y_vector(i) = NaN;
+        end
+    end
+
+
 
     % Select data after tstar
     tstar_index = find(time >= tstar, 1, 'first');
@@ -209,6 +246,7 @@ function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target
 
     % Perform linear regression
     regression_coefficients = (weight_matrix_selected * X_selected) \ (weight_matrix_selected * Y_selected);
+    
     Vt = regression_coefficients(1);
 
     % Check for NaN in Vt
@@ -232,6 +270,7 @@ function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target
         saveas(h, fullfile(output_directory, 'Plots', ['_Logan_Vt_', num2str(tstar), '.png']), 'png');
         close(h);
         disp('Figures DONE..');
+        
     end
 
     % Save Vt to a text file
