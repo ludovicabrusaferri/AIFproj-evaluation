@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
 
-subject = 67
+subject = 69
 num_timestamps = 26
 flattened_signals = []
 
@@ -63,15 +63,18 @@ flattened_signals_matrix = np.array(flattened_signals)
 print("Converted flattened signals to a matrix")
 
 # Normalize flattened true signal
-true_values_normalized = np.reshape(StandardScaler().fit_transform(np.reshape(true_values, (-1, 1))), true_values.shape)
+scaler_true = StandardScaler()
+true_values_normalized = np.reshape(scaler_true.fit_transform(np.reshape(true_values, (-1, 1))), true_values.shape)
 print("Normalized true values")
 
 # Normalize uncorrected values
-uncor_values_normalized = np.reshape(StandardScaler().fit_transform(np.reshape(uncor_values, (-1, 1))), uncor_values.shape)
+scaler_uncor = StandardScaler()
+uncor_values_normalized = np.reshape(scaler_uncor.fit_transform(np.reshape(uncor_values, (-1, 1))), uncor_values.shape)
 print("Normalized uncorrected values")
 
 # Normalize flattened signals matrix
-flattened_signals_matrix_normalized = np.reshape(StandardScaler().fit_transform(np.reshape(flattened_signals_matrix, (-1, flattened_signals_matrix.shape[1]))), flattened_signals_matrix.shape)
+scaler_flattened = StandardScaler()
+flattened_signals_matrix_normalized = np.reshape(scaler_flattened.fit_transform(np.reshape(flattened_signals_matrix, (-1, flattened_signals_matrix.shape[1]))), flattened_signals_matrix.shape)
 print("Normalized flattened signals matrix")
 
 # Plot the signals in a 5x6 grid
@@ -121,35 +124,52 @@ sorted_correlations = [x[1] for x in correlations_sorted]
 # Convert correlations to a numpy array
 sorted_correlations = np.array(sorted_correlations)
 
-# Plot the top 4 correlation value signals vs the true signal in a 4x2 grid
-fig, axs = plt.subplots(4, 2, figsize=(20, 15))
+# Plot the best score vs true and uncorrected, the correlation, and original true vs uncorrected vs best score before rescaling
+fig, axs = plt.subplots(1, 4, figsize=(32, 8))
 
-for idx in range(4):
-    best_index = sorted_indices[idx]
-    best_signal = flattened_signals_matrix_normalized[:, best_index]
+best_index = sorted_indices[0]
+best_signal_normalized = flattened_signals_matrix_normalized[:, best_index]
+best_signal_original = flattened_signals_matrix[:, best_index]
 
-    # Plot the best signal vs the true signal
-    axs[idx, 0].plot(best_signal, label=f'Best Signal {idx+1}')
-    axs[idx, 0].plot(flattened_true_values_normalized, label='True Signal', linestyle='--')
-    axs[idx, 0].plot(flattened_uncor_values_normalized, label='Uncorrected Signal', color='black', linestyle='-.')
-    axs[idx, 0].set_title(f'Subject {subject} - Highest Correlation Signal {idx+1} (Index: {best_index}, Correlation: {sorted_correlations[idx]:.2f})')
-    axs[idx, 0].set_ylabel('Value')
-    axs[idx, 0].legend()
+# Plot the best signal vs the true signal and uncorrected signal (normalized)
+axs[0].plot(best_signal_normalized, label='Best Signal')
+axs[0].plot(flattened_true_values_normalized, label='True Signal', linestyle='--')
+axs[0].plot(flattened_uncor_values_normalized, label='Uncorrected Signal', color='black', linestyle='-.')
+axs[0].set_title(f'Subject {subject} - Best Signal vs True and Uncorrected Signal (Normalized)')
+axs[0].set_xlabel('Index')
+axs[0].set_ylabel('Value')
+axs[0].legend()
 
-    # Create a scatter plot with a regression line
-    slope, intercept, r_value, p_value, std_err = linregress(flattened_true_values_normalized, best_signal)
-    line = slope * flattened_true_values_normalized + intercept
-    axs[idx, 1].scatter(flattened_true_values_normalized, best_signal, label='Data Points')
-    axs[idx, 1].plot(flattened_true_values_normalized, line, color='red', label=f'Regression Line (r={r_value:.2f})')
-    axs[idx, 1].set_title(f'Subject {subject} - Scatter Plot with Regression Line (Index: {best_index})')
-    axs[idx, 1].set_xlabel('True Signal')
-    axs[idx, 1].set_ylabel('Best Signal')
-    axs[idx, 1].legend()
+# Create a scatter plot with a regression line (normalized)
+slope, intercept, r_value, p_value, std_err = linregress(flattened_true_values_normalized, best_signal_normalized)
+line = slope * flattened_true_values_normalized + intercept
+axs[1].scatter(flattened_true_values_normalized, best_signal_normalized, label='Data Points')
+axs[1].plot(flattened_true_values_normalized, line, color='red', label=f'Regression Line (r={r_value:.2f})')
+axs[1].set_title(f'Subject {subject} - Scatter Plot with Regression Line (Normalized)')
+axs[1].set_xlabel('True Signal')
+axs[1].set_ylabel('Best Signal')
+axs[1].legend()
+
+# Plot the original true, uncorrected, and best signal before rescaling
+axs[2].plot(true_values, label='True Signal')
+axs[2].plot(uncor_values, label='Uncorrected Signal', color='black', linestyle='-.')
+axs[2].plot(best_signal_original, label='Best Signal')
+axs[2].set_title(f'Subject {subject} - Original True vs Uncorrected vs Best Signal (Original)')
+axs[2].set_xlabel('Index')
+axs[2].set_ylabel('Value')
+axs[2].legend()
+
+# Plot the rescaling parameters (mean and scale) for the best signal
+axs[3].plot(scaler_flattened.mean_, label='Mean Value', linestyle='--')
+axs[3].plot(scaler_flattened.scale_, label='Scale Value', linestyle='--')
+axs[3].set_title(f'Subject {subject} - Rescaling Parameters for Best Signal')
+axs[3].set_xlabel('Feature Index')
+axs[3].set_ylabel('Value')
+axs[3].set_ylim([-4, 4])
+axs[3].legend()
 
 # Save the plot as a jpg file
-best_signal_plot_path = os.path.join(plotsave, f'subject_{subject}_best_signals_vs_true_signal.jpg')
+best_signal_plot_path = os.path.join(plotsave, f'subject_{subject}_best_signals_vs_true_uncorrected_rescaling.jpg')
 plt.savefig(best_signal_plot_path, format='jpg')
 plt.close()
-print("Saved best signals vs true signal plot with scatter and regression")
-
-print('DONE')
+print("Saved best signals vs true and uncorrected signal plot with rescaling parameters")
