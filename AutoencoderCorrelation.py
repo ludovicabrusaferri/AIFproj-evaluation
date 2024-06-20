@@ -6,7 +6,7 @@ from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
 import nibabel as nib
 
-subject = 67
+subject = 24
 num_timestamps = 26
 
 
@@ -85,17 +85,19 @@ def normalize_data(data):
 
 
 def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalized, flattened_uncor_values_normalized, data_type, plotsave):
+    # Increase font size
+    plt.rcParams.update({'font.size': 30})
+
     # Calculate the correlation for each element across the timestamps
     correlations = []
     for i in range(data_matrix.shape[1]):
         correlation = np.corrcoef(data_matrix[:, i], flattened_true_values_normalized)[0, 1]
-        if not np.isnan(correlation):
-            correlations.append((i, correlation))  # Store index and correlation
+        correlations.append((i, correlation))  # Store index and correlation
         if i % 1000 == 0:
             print(f"Calculated correlation for {data_type} element {i}: {correlation}")
 
-    # Sort correlations in descending order
-    correlations_sorted = sorted(correlations, key=lambda x: x[1], reverse=True)
+    # Filter out NaN values and sort correlations in descending order
+    correlations_sorted = sorted([c for c in correlations if not np.isnan(c[1])], key=lambda x: x[1], reverse=True)
     print(f"Sorted {data_type} correlations")
 
     # Extract sorted indices and values
@@ -134,7 +136,6 @@ def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalize
     plt.savefig(plot_path, format='jpg')
     plt.close()
     print(f"Saved best {data_type} signals vs true and uncorrected signal plot with rescaling parameters")
-
 
 def plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave):
     fig, axs = plt.subplots(5, 6, figsize=(20, 20))
@@ -183,8 +184,6 @@ def main():
 
     # Calculate and plot correlations for latent space signals
     calculate_and_plot_correlations(flattened_signals_matrix_normalized, true_values_normalized, uncor_values_normalized, 'latent', plotsave)
-
-
     # Calculate and plot correlations for images
     calculate_and_plot_correlations(flattened_images_matrix_normalized, true_values_normalized, uncor_values_normalized, 'image', plotsave)
 
