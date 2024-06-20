@@ -6,7 +6,7 @@ from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
 import nibabel as nib
 
-subject = 68
+subject = 77
 num_timestamps = 26
 
 
@@ -182,6 +182,14 @@ def save_mask_overlay(t1_img_path, mask_path, output_path):
     t1_img = nib.load(t1_img_path).get_fdata()
     mask_img = nib.load(mask_path).get_fdata()
 
+    # Ensure t1_img has only 3 dimensions
+    if t1_img.ndim == 4 and t1_img.shape[-1] == 1:
+        t1_img = t1_img[..., 0]
+
+    # Ensure mask_img has only 3 dimensions
+    if mask_img.ndim == 4 and mask_img.shape[-1] == 1:
+        mask_img = mask_img[..., 0]
+
     # Find the slices with the most mask voxels for each view
     coronal_sums = np.sum(mask_img, axis=(0, 2))
     sagittal_sums = np.sum(mask_img, axis=(1, 2))
@@ -217,7 +225,6 @@ def save_mask_overlay(t1_img_path, mask_path, output_path):
     plt.savefig(overlay_path, format='jpg')
     plt.close()
     print(f"Saved mask overlay image: {overlay_path}")
-
 
 def main():
     # Define file paths
