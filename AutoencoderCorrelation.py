@@ -63,6 +63,7 @@ def load_and_process_signals(subject, num_timestamps):
 
 def load_and_process_images(subject, num_timestamps):
     flattened_images = []
+    original_shapes = []
     workdir = '/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data'
     for timestamp in range(num_timestamps):
         image_path = f'{workdir}/{subject}/{subject}_00{timestamp:02d}.nii.gz'
@@ -70,13 +71,15 @@ def load_and_process_images(subject, num_timestamps):
         if os.path.exists(image_path):
             img = nib.load(image_path)
             img_data = img.get_fdata()
+            img_shape = img_data.shape
+            original_shapes.append(img_shape)
             img_flattened = img_data.flatten()
             flattened_images.append(img_flattened)
             print(f"Loaded and flattened image data for timestamp {timestamp}")
         else:
             print(f"Image file path for timestamp {timestamp} does not exist.")
 
-    return np.array(flattened_images)
+    return np.array(flattened_images), original_shapes
 
 
 def normalize_data(data):
@@ -137,6 +140,22 @@ def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalize
     plt.close()
     print(f"Saved best {data_type} signals vs true and uncorrected signal plot with rescaling parameters")
 
+    return sorted_indices[:100]  # Return the best 100 indices
+
+
+def create_binary_mask(image_shape, best_indices):
+    mask = np.zeros(np.prod(image_shape), dtype=int)
+    mask[best_indices] = 1
+    return mask.reshape(image_shape)
+
+
+def save_nifti_mask(mask, reference_img_path, output_path):
+    reference_img = nib.load(reference_img_path)
+    mask_img = nib.Nifti1Image(mask, reference_img.affine, reference_img.header)
+    nib.save(mask_img, output_path)
+    print(f"Saved binary mask as NIfTI file: {output_path}")
+
+
 def plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave):
     fig, axs = plt.subplots(5, 6, figsize=(20, 20))
 
@@ -166,11 +185,11 @@ def main():
     true_values, uncor_values = load_data(true_value_file_path, metuncor_path)
 
     # Load and process signals
-    flattened_signals_matrix, original_shapes = load_and_process_signals(subject, num_timestamps)
+    flattened_signals_matrix, original_shapes_signals = load_and_process_signals(subject, num_timestamps)
     print("Converted flattened signals to matrix")
 
     # Load and process images
-    flattened_images_matrix = load_and_process_images(subject, num_timestamps)
+    flattened_images_matrix, original_shapes_images = load_and_process_images(subject, num_timestamps)
     print("Converted flattened images to matrix")
 
     # Normalize data
@@ -184,9 +203,16 @@ def main():
 
     # Calculate and plot correlations for latent space signals
     calculate_and_plot_correlations(flattened_signals_matrix_normalized, true_values_normalized, uncor_values_normalized, 'latent', plotsave)
-    # Calculate and plot correlations for images
-    calculate_and_plot_correlations(flattened_images_matrix_normalized, true_values_normalized, uncor_values_normalized, 'image', plotsave)
 
+    # Calculate and plot correlations for images and get the best 100 indices
+    best_image_indices = calculate_and_plot_correlations(flattened_images_matrix_normalized, true_values_normalized, uncor_values_normalized, 'image', plotsave)
+
+    # Create and save binary mask
+    image_shape = original_shapes_images[0]  # Assuming all images have the same shape
+    binary_mask = create_binary_mask(image_shape, best_image_indices)
+    reference_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data/{subject}/{subject}_0000.nii.gz'
+    output_mask_path = os.path.join(plotsave, f'subject_{subject}_best_image_correlations_mask.nii.gz')
+    save_nifti_mask(binary_mask, reference_img_path, output_mask_path)
 
 if __name__ == "__main__":
     main()
