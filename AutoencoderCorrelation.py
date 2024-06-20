@@ -6,7 +6,7 @@ from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
 import nibabel as nib
 
-subject = 24
+subject = 68
 num_timestamps = 26
 
 
@@ -100,12 +100,11 @@ def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalize
             print(f"Calculated correlation for {data_type} element {i}: {correlation}")
 
     # Filter out NaN values and sort correlations in descending order
-    correlations_sorted = sorted([c for c in correlations if not np.isnan(c[1])], key=lambda x: x[1], reverse=True)
+    correlations_sorted = sorted(filter(lambda x: not np.isnan(x[1]), correlations), key=lambda x: x[1], reverse=True)
     print(f"Sorted {data_type} correlations")
 
-    # Extract sorted indices and values
+    # Extract sorted indices
     sorted_indices = [x[0] for x in correlations_sorted]
-    sorted_correlations = [x[1] for x in correlations_sorted]
 
     # Plot the best score vs true and uncorrected, the correlation, original true vs uncorrected vs best score before rescaling,
     # and the rescaling parameters (mean and scale) for the best signal
@@ -140,7 +139,10 @@ def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalize
     plt.close()
     print(f"Saved best {data_type} signals vs true and uncorrected signal plot with rescaling parameters")
 
-    return sorted_indices[:100]  # Return the best 100 indices
+    # Test to ensure sorted_indices has the same dimension as the flattened image
+    print(f"Length of sorted indices: {len(sorted_indices)}")
+    print(f"Original data matrix shape: {data_matrix.shape}")
+    return sorted_indices[:10]  # Return the best 200 indices
 
 
 def create_binary_mask(image_shape, best_indices):
@@ -173,6 +175,48 @@ def plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamp
     plt.savefig(fig_path, format='jpg')
     plt.close()
     print("Saved flattened signals plot")
+
+
+def save_mask_overlay(t1_img_path, mask_path, output_path):
+    # Load T1 image and mask
+    t1_img = nib.load(t1_img_path).get_fdata()
+    mask_img = nib.load(mask_path).get_fdata()
+
+    # Find the slices with the most mask voxels for each view
+    coronal_sums = np.sum(mask_img, axis=(0, 2))
+    sagittal_sums = np.sum(mask_img, axis=(1, 2))
+    axial_sums = np.sum(mask_img, axis=(0, 1))
+
+    best_coronal_slice_idx = np.argmax(coronal_sums)
+    best_sagittal_slice_idx = np.argmax(sagittal_sums)
+    best_axial_slice_idx = np.argmax(axial_sums)
+
+    # Create the overlay plot
+    fig, axs = plt.subplots(1, 3, figsize=(20, 10))
+
+    # Coronal view
+    axs[0].imshow(t1_img[:, best_coronal_slice_idx, :].T, cmap='gray', origin='lower')
+    axs[0].imshow(mask_img[:, best_coronal_slice_idx, :].T, cmap='jet', alpha=0.5, origin='lower')
+    axs[0].set_title(f'Coronal Slice {best_coronal_slice_idx}')
+    axs[0].axis('off')
+
+    # Sagittal view
+    axs[1].imshow(t1_img[best_sagittal_slice_idx, :, :].T, cmap='gray', origin='lower')
+    axs[1].imshow(mask_img[best_sagittal_slice_idx, :, :].T, cmap='jet', alpha=0.5, origin='lower')
+    axs[1].set_title(f'Sagittal Slice {best_sagittal_slice_idx}')
+    axs[1].axis('off')
+
+    # Axial view
+    axs[2].imshow(t1_img[:, :, best_axial_slice_idx].T, cmap='gray', origin='lower')
+    axs[2].imshow(mask_img[:, :, best_axial_slice_idx].T, cmap='jet', alpha=0.5, origin='lower')
+    axs[2].set_title(f'Axial Slice {best_axial_slice_idx}')
+    axs[2].axis('off')
+
+    # Save the overlay image
+    overlay_path = os.path.join(output_path, f'mask_overlay_{subject}.jpg')
+    plt.savefig(overlay_path, format='jpg')
+    plt.close()
+    print(f"Saved mask overlay image: {overlay_path}")
 
 
 def main():
@@ -213,6 +257,9 @@ def main():
     reference_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data/{subject}/{subject}_0000.nii.gz'
     output_mask_path = os.path.join(plotsave, f'subject_{subject}_best_image_correlations_mask.nii.gz')
     save_nifti_mask(binary_mask, reference_img_path, output_mask_path)
+
+    t1_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/T1img_data/{subject}/{subject}.nii.gz'
+    save_mask_overlay(t1_img_path, output_mask_path, plotsave)
 
 if __name__ == "__main__":
     main()
