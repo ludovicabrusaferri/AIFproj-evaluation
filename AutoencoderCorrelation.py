@@ -4,8 +4,9 @@ import os
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
+from mpl_toolkits.mplot3d import Axes3D
 
-subject = 69
+subject = 24
 num_timestamps = 26
 flattened_signals = []
 
@@ -27,9 +28,12 @@ if os.path.exists(metuncor_path):
 else:
     raise FileNotFoundError(f"Uncorrected value file path does not exist: {metuncor_path}")
 
+original_shapes = []
+
 for timestamp in range(num_timestamps):
     signal_mean_path = f'/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/autoencoder/{subject}_0/{timestamp}_latent_mean.pkl'
     signal_std_path = f'/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/autoencoder/{subject}_0/{timestamp}_latent_stddev.pkl'
+    image_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data/{subject}/{subject}_000{timestamp}.nii.gz'
 
     # Check if the file paths exist
     if os.path.exists(signal_mean_path) and os.path.exists(signal_std_path):
@@ -49,6 +53,9 @@ for timestamp in range(num_timestamps):
 
         signal = np.mean(signal_samples, axis=0)
         signal = np.squeeze(signal)
+
+        # Capture the original shape before flattening
+        original_shapes.append(signal.shape)
 
         # Flatten the array
         flattened_signal = signal.flatten()
@@ -124,8 +131,10 @@ sorted_correlations = [x[1] for x in correlations_sorted]
 # Convert correlations to a numpy array
 sorted_correlations = np.array(sorted_correlations)
 
-# Plot the best score vs true and uncorrected, the correlation, and original true vs uncorrected vs best score before rescaling
-fig, axs = plt.subplots(1, 4, figsize=(32, 8))
+# Plot the best score vs true and uncorrected, the correlation, original true vs uncorrected vs best score before rescaling,
+# and the rescaling parameters (mean and scale) for the best signal
+
+fig, axs = plt.subplots(2, 1, figsize=(20, 32))
 
 best_index = sorted_indices[0]
 best_signal_normalized = flattened_signals_matrix_normalized[:, best_index]
@@ -150,26 +159,32 @@ axs[1].set_xlabel('True Signal')
 axs[1].set_ylabel('Best Signal')
 axs[1].legend()
 
-# Plot the original true, uncorrected, and best signal before rescaling
-axs[2].plot(true_values, label='True Signal')
-axs[2].plot(uncor_values, label='Uncorrected Signal', color='black', linestyle='-.')
-axs[2].plot(best_signal_original, label='Best Signal')
-axs[2].set_title(f'Subject {subject} - Original True vs Uncorrected vs Best Signal (Original)')
-axs[2].set_xlabel('Index')
-axs[2].set_ylabel('Value')
-axs[2].legend()
-
-# Plot the rescaling parameters (mean and scale) for the best signal
-axs[3].plot(scaler_flattened.mean_, label='Mean Value', linestyle='--')
-axs[3].plot(scaler_flattened.scale_, label='Scale Value', linestyle='--')
-axs[3].set_title(f'Subject {subject} - Rescaling Parameters for Best Signal')
-axs[3].set_xlabel('Feature Index')
-axs[3].set_ylabel('Value')
-axs[3].set_ylim([-4, 4])
-axs[3].legend()
 
 # Save the plot as a jpg file
 best_signal_plot_path = os.path.join(plotsave, f'subject_{subject}_best_signals_vs_true_uncorrected_rescaling.jpg')
 plt.savefig(best_signal_plot_path, format='jpg')
 plt.close()
 print("Saved best signals vs true and uncorrected signal plot with rescaling parameters")
+
+# Determine the 4D coordinates of the top 20 best indices
+#top_indices = sorted_indices[:50]
+#coordinates = [np.unravel_index(idx, original_shapes[0]) for idx in top_indices]
+
+# Plot the 3D scatter plot of the top 20 best indices with color representing the fourth dimension
+#fig = plt.figure(figsize=(10, 8))
+#ax = fig.add_subplot(111, projection='3d')
+#x, y, z, p = zip(*coordinates)
+#sc = ax.scatter(x, y, z, c=p, cmap='viridis', s=100)
+#ax.set_title(f'Subject {subject} - Top 20 Best Indices in 3D')
+#ax.set_xlabel('X Coordinate')
+#ax.set_ylabel('Y Coordinate')
+#ax.set_zlabel('Z Coordinate')
+#cbar = plt.colorbar(sc, ax=ax, pad=0.1)
+#cbar.set_label('Fourth Dimension (P)')
+#ax.grid(True)
+
+# Save the 3D scatter plot as a jpg file
+#scatter_plot_path = os.path.join(plotsave, f'subject_{subject}_top_20_indices_3d_scatter.jpg')
+#plt.savefig(scatter_plot_path, format='jpg')
+##plt.close()
+#print("Saved 3D scatter plot of the top 20 best indices")
