@@ -6,8 +6,9 @@ from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
 import nibabel as nib
 
-subject = 24
+subject = 67
 num_timestamps = 26
+
 
 def load_data(true_value_file_path, metuncor_path):
     if os.path.exists(true_value_file_path):
@@ -23,6 +24,7 @@ def load_data(true_value_file_path, metuncor_path):
         raise FileNotFoundError(f"Uncorrected value file path does not exist: {metuncor_path}")
 
     return true_values, uncor_values
+
 
 def load_and_process_signals(subject, num_timestamps):
     flattened_signals = []
@@ -58,6 +60,7 @@ def load_and_process_signals(subject, num_timestamps):
 
     return np.array(flattened_signals), original_shapes
 
+
 def load_and_process_images(subject, num_timestamps):
     flattened_images = []
     workdir = '/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data'
@@ -75,9 +78,11 @@ def load_and_process_images(subject, num_timestamps):
 
     return np.array(flattened_images)
 
+
 def normalize_data(data):
     scaler = StandardScaler()
     return np.reshape(scaler.fit_transform(np.reshape(data, (-1, data.shape[1]))), data.shape)
+
 
 def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalized, flattened_uncor_values_normalized, data_type, plotsave):
     # Calculate the correlation for each element across the timestamps
@@ -130,6 +135,7 @@ def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalize
     plt.close()
     print(f"Saved best {data_type} signals vs true and uncorrected signal plot with rescaling parameters")
 
+
 def plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave):
     fig, axs = plt.subplots(5, 6, figsize=(20, 20))
 
@@ -147,6 +153,7 @@ def plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamp
     plt.savefig(fig_path, format='jpg')
     plt.close()
     print("Saved flattened signals plot")
+
 
 def main():
     # Define file paths
@@ -174,15 +181,13 @@ def main():
     # Plot hidden layer signals
     plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave)
 
-    # Plot image
-    #plot_hidden_layer_signals(flattened_images_matrix_normalized, num_timestamps, plotsave)
-
     # Calculate and plot correlations for latent space signals
     calculate_and_plot_correlations(flattened_signals_matrix_normalized, true_values_normalized, uncor_values_normalized, 'latent', plotsave)
 
 
     # Calculate and plot correlations for images
     calculate_and_plot_correlations(flattened_images_matrix_normalized, true_values_normalized, uncor_values_normalized, 'image', plotsave)
+
 
 if __name__ == "__main__":
     main()
