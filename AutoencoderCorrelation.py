@@ -91,7 +91,7 @@ def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalize
         correlation = np.corrcoef(data_matrix[:, i], flattened_true_values_normalized)[0, 1]
         correlations.append((i, correlation))  # Store index and correlation
         if i % 1000 == 0:
-            print(f"Calculated correlation for {data_type} element {i}")
+            print(f"Calculated correlation for {data_type} element {i}: {correlation}")
 
     # Sort correlations in descending order
     correlations_sorted = sorted(correlations, key=lambda x: x[1], reverse=True)
@@ -179,6 +179,10 @@ def main():
 
     # Plot hidden layer signals
     plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave)
+
+    # Plot image
+    #plot_hidden_layer_signals(flattened_images_matrix_normalized, num_timestamps, plotsave)
+
 
     # Calculate and plot correlations for latent space signals
     calculate_and_plot_correlations(flattened_signals_matrix_normalized, true_values_normalized, uncor_values_normalized, 'latent', plotsave)
