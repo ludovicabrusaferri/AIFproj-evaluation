@@ -6,10 +6,6 @@ from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
 import nibabel as nib
 
-subject = 43
-testindex = 43
-visitnumber = 0
-num_timestamps = 26
 
 
 def load_data(true_value_file_path, metuncor_path):
@@ -29,6 +25,7 @@ def load_data(true_value_file_path, metuncor_path):
 
 
 def load_and_process_signals(subject, num_timestamps, workdir):
+    visitnumber = 0
     flattened_signals = []
     original_shapes = []
     for timestamp in range(num_timestamps):
@@ -87,7 +84,7 @@ def normalize_data(data):
     return np.reshape(scaler.fit_transform(np.reshape(data, (-1, data.shape[1]))), data.shape)
 
 
-def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalized, flattened_uncor_values_normalized, data_type, plotsave):
+def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalized, flattened_uncor_values_normalized, data_type, plotsave, subject):
     # Increase font size
     plt.rcParams.update({'font.size': 30})
 
@@ -161,7 +158,7 @@ def save_nifti_mask(mask, reference_img_path, output_path):
     print(f"Saved binary mask as NIfTI file: {output_path}")
 
 
-def plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave):
+def plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave, subject):
     fig, axs = plt.subplots(5, 6, figsize=(20, 20))
 
     for i in range(5):
@@ -180,7 +177,7 @@ def plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamp
     print("Saved flattened signals plot")
 
 
-def save_mask_overlay(t1_img_path, mask_path, output_path,masktype):
+def save_mask_overlay(t1_img_path, mask_path, output_path,masktype, subject):
     # Load T1 image and mask
     t1_img = nib.load(t1_img_path).get_fdata()
     mask_img = nib.load(mask_path).get_fdata()
@@ -231,6 +228,12 @@ def save_mask_overlay(t1_img_path, mask_path, output_path,masktype):
 
 
 def main():
+
+
+    subject = 42
+    testindex = 43
+    num_timestamps = 26
+
     # Define file paths
     plotsave = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/figures'
     true_value_file_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/metabolite_corrected_signal_data/{subject}.txt'
@@ -238,7 +241,7 @@ def main():
     t1_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/T1img_data/{subject}/{subject}.nii.gz'
     image_path = '/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data'
     reference_img_path = f'/{image_path}/{subject}/{subject}_0000.nii.gz'
-    autoencoder_path = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/autoencoder'
+    autoencoder_path = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/autoencoder/test'
 
     # Load true and uncorrected values
     true_values, uncor_values = load_data(true_value_file_path, metuncor_path)
@@ -258,13 +261,13 @@ def main():
     uncor_values_normalized = normalize_data(uncor_values.reshape(-1, 1)).flatten()
 
     # Plot hidden layer signals
-    plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave)
+    plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave, subject)
 
     # Calculate and plot correlations for latent space signals
-    calculate_and_plot_correlations(flattened_signals_matrix_normalized, true_values_normalized, uncor_values_normalized, 'latent', plotsave)
+    calculate_and_plot_correlations(flattened_signals_matrix_normalized, true_values_normalized, uncor_values_normalized, 'latent', plotsave, subject)
 
     # Calculate and plot correlations for images and get the best 100 indices
-    best_image_indices, nan_indices = calculate_and_plot_correlations(flattened_images_matrix_normalized, true_values_normalized, uncor_values_normalized, 'image', plotsave)
+    best_image_indices, nan_indices = calculate_and_plot_correlations(flattened_images_matrix_normalized, true_values_normalized, uncor_values_normalized, 'image', plotsave, subject)
 
     # Create and save binary mask
     image_shape = original_shapes_images[0]  # Assuming all images have the same shape
@@ -272,7 +275,7 @@ def main():
 
     output_mask_path = os.path.join(plotsave, f'subject_{subject}_best_image_correlations_mask.nii.gz')
     save_nifti_mask(binary_mask, reference_img_path, output_mask_path)
-    save_mask_overlay(t1_img_path, output_mask_path, plotsave, 'bestcorr')
+    save_mask_overlay(t1_img_path, output_mask_path, plotsave, 'bestcorr', subject)
 
 
 if __name__ == "__main__":
