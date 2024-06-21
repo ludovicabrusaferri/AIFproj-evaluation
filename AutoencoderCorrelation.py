@@ -6,8 +6,8 @@ from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
 import nibabel as nib
 
-subject = 23
-testindex = 24
+subject = 43
+testindex = 43
 visitnumber = 0
 num_timestamps = 26
 
@@ -95,12 +95,13 @@ def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalize
     correlations = []
     for i in range(data_matrix.shape[1]):
         correlation = np.corrcoef(data_matrix[:, i], flattened_true_values_normalized)[0, 1]
+        correlation = 0 if np.isnan(correlation) else correlation
         correlations.append((i, correlation))  # Store index and correlation
         if i % 1000 == 0:
             print(f"Calculated correlation for {data_type} element {i}: {correlation}")
 
     # Filter out NaN values and sort correlations in descending order
-    correlations_sorted = sorted(filter(lambda x: not np.isnan(x[1]), correlations), key=lambda x: x[1], reverse=True)
+    correlations_sorted = sorted(correlations, key=lambda x: x[1], reverse=True)
     print(f"Sorted {data_type} correlations")
     # Separate NaN and non-NaN correlations
 
@@ -268,15 +269,10 @@ def main():
     # Create and save binary mask
     image_shape = original_shapes_images[0]  # Assuming all images have the same shape
     binary_mask = create_binary_mask(image_shape, best_image_indices)
-    nan_mask = create_binary_mask(image_shape, nan_indices)
 
     output_mask_path = os.path.join(plotsave, f'subject_{subject}_best_image_correlations_mask.nii.gz')
     save_nifti_mask(binary_mask, reference_img_path, output_mask_path)
     save_mask_overlay(t1_img_path, output_mask_path, plotsave, 'bestcorr')
-
-    nan_mask_path = os.path.join(plotsave, f'subject_{subject}_nan_mask.nii.gz')
-    save_nifti_mask(nan_mask, reference_img_path, nan_mask_path)
-    save_mask_overlay(t1_img_path, nan_mask_path, plotsave, 'nanmask')
 
 
 if __name__ == "__main__":
