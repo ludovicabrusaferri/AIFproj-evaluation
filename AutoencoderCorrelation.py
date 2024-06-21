@@ -6,7 +6,7 @@ from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
 import nibabel as nib
 
-subject = 77
+subject = 24
 num_timestamps = 26
 
 
@@ -231,7 +231,9 @@ def main():
     plotsave = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/figures'
     true_value_file_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/metabolite_corrected_signal_data/{subject}.txt'
     metuncor_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/signal_data/{subject}.txt'
-
+    reference_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data/{subject}/{subject}_0000.nii.gz'
+    t1_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/T1img_data/{subject}/{subject}.nii.gz'
+    
     # Load true and uncorrected values
     true_values, uncor_values = load_data(true_value_file_path, metuncor_path)
 
@@ -261,11 +263,11 @@ def main():
     # Create and save binary mask
     image_shape = original_shapes_images[0]  # Assuming all images have the same shape
     binary_mask = create_binary_mask(image_shape, best_image_indices)
-    reference_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data/{subject}/{subject}_0000.nii.gz'
+
     output_mask_path = os.path.join(plotsave, f'subject_{subject}_best_image_correlations_mask.nii.gz')
     save_nifti_mask(binary_mask, reference_img_path, output_mask_path)
 
-    t1_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/T1img_data/{subject}/{subject}.nii.gz'
+
     save_mask_overlay(t1_img_path, output_mask_path, plotsave)
 
 if __name__ == "__main__":
