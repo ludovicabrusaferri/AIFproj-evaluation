@@ -24,8 +24,8 @@ def load_data(true_value_file_path, metuncor_path):
     return true_values, uncor_values
 
 
-def load_and_process_signals(subject, num_timestamps, workdir):
-    visitnumber = 0
+def load_and_process_signals(subject, num_timestamps, workdir, visitnumber):
+
     flattened_signals = []
     original_shapes = []
     for timestamp in range(num_timestamps):
@@ -230,8 +230,9 @@ def save_mask_overlay(t1_img_path, mask_path, output_path,masktype, subject):
 def main():
 
 
-    subject = 42
-    testindex = 43
+    subject = 41
+    testindex = 42
+    visitnumber=0
     num_timestamps = 26
 
     # Define file paths
@@ -241,13 +242,13 @@ def main():
     t1_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/T1img_data/{subject}/{subject}.nii.gz'
     image_path = '/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data'
     reference_img_path = f'/{image_path}/{subject}/{subject}_0000.nii.gz'
-    autoencoder_path = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/autoencoder/test'
+    autoencoder_path = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/autoencoder/test/test'
 
     # Load true and uncorrected values
     true_values, uncor_values = load_data(true_value_file_path, metuncor_path)
 
     # Load and process signals
-    flattened_signals_matrix, original_shapes_signals = load_and_process_signals(testindex, num_timestamps, autoencoder_path)
+    flattened_signals_matrix, original_shapes_signals = load_and_process_signals(testindex, num_timestamps, autoencoder_path, visitnumber)
     print("Converted flattened signals to matrix")
 
     # Load and process images
