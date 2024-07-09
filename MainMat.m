@@ -1,31 +1,51 @@
-% Set paths
-clear all
-rng(42);
-path = '/Users/e410377/Desktop/Ludo/AlexLudo/';
-%project='/ReformattedOriginalDataKCL_ALL';
-project='/ReformattedAIDataMarco/';
-%addpath(genpath('/Users/e410377/Desktop/PETAnalysisPaper/utility'));
-workdir = path;
-script_directory = '/Users/e410377/Desktop/AIFproj-evaluation/';
-predicted='AIF';
+% Define the variable
+subject = 5;
+bool = 'harvard';  % or 'harvard'
+predicted = 'AIF';
 
-if strcmp(predicted,'AEIF')
-    aif_input = [path, project, '/RESULTS/metabolite_corrector_aeif/test/'];
-elseif strcmp(predicted,'AIF')
-    aif_input = [path, project, 'RESULTSNEW/metabolite_corrector_aif/test/'];
-    subject = 15;
-    var2=importdata(fullfile(aif_input,sprintf('%d',subject),[sprintf('%d',subject), '_mean.txt']));
-elseif strcmp(predicted,'IDIF')
-    aif_input = [path, project, '/OLD/metabolite_corrector_idif/test/'];
-elseif strcmp(predicted,'MICsub')
-    aif_input = [path, project, '/OLD/MICsub/'];
-    subject = 9;
-    var2=importdata(fullfile(aif_input,[sprintf('%d',subject), '_mean.txt']));
+% Set the study name based on the institution
+if strcmp(bool, 'harvard')
+    study = 'ReformattedAIDataMarco';
+elseif strcmp(bool, 'kcl')
+    study = 'ReformattedOriginalDataKCL_ALL';
 end
 
-true_input = [path, project, '/patient_data/metabolite_corrected_signal_data'];
-tac_directory = [path ,project, '/patient_data/time_activity_curves/'];
-petframestartstop = [path, project, '/patient_data/PETframestartstop'];
+% Base paths
+base_path = fullfile('/Users/e410377/Desktop/Ludo/AlexLudo/', study, '/');
+
+true_input_base = fullfile(base_path, 'patient_data/metabolite_corrected_signal_data/');
+tac_directory_base = fullfile(base_path, 'patient_data/time_activity_curves/');
+petframestartstop_base = fullfile(base_path, 'patient_data/PETframestartstop/');
+workdir_base = '/Users/e410377/Desktop/AIFproj-evaluation/';
+projectdir_base = fullfile(workdir_base, study, '/');
+
+if strcmp(bool, 'harvard')
+    predicted_input_base = fullfile(base_path, 'RESULTSNEW/metabolite_corrector_aif/test/', '/');
+elseif strcmp(bool, 'kcl')
+    predicted_input_base = fullfile(workdir_base, 'OUT', study, predicted, '/test/');
+end
+
+% Set paths based on the value of 'bool'
+predicted_input = predicted_input_base;
+true_input = true_input_base;
+tac_directory = tac_directory_base;
+petframestartstop = petframestartstop_base;
+workdir = workdir_base;
+projectdir = projectdir_base;
+
+% Display paths for verification
+disp('Predicted Input Path:');
+disp(predicted_input);
+disp('True Input Path:');
+disp(true_input);
+disp('TAC Directory:');
+disp(tac_directory);
+disp('PET Frame Start Stop Directory:');
+disp(petframestartstop);
+disp('Work Directory:');
+disp(workdir);
+disp('Project Directory:');
+disp(projectdir);
 
 
 fileList = dir(fullfile(true_input, '*.txt'));
@@ -40,17 +60,21 @@ calculateVt=true;
 
 
 
-var1=importdata(fullfile(true_input,[sprintf('%d',subject), '.txt']));
+%var1=importdata(fullfile(true_input,[sprintf('%d',subject), '.txt']));
+%var3=importdata(fullfile(uncor_input,[sprintf('%d',subject), '.txt']));
 
-
-figure(11)
-plot(var1,'LineWidth',2)
-hold on
-plot(var2,'--','LineWidth',2)
-legend('true','estimated')
-hold off
-set(gca,'FontSize',20)
-set(gcf,'Color','w')
+%figure(11)
+%plot(var1,'LineWidth',3)
+%hold on
+%plot(var2,'--','LineWidth',3)
+%hold on
+%plot(var3,'--','LineWidth',3)
+%egend('true','estimated','input')
+%hold off
+%set(gca,'FontSize',20)
+%set(gcf,'Color','w')
+%xlabel('frames')
+%ylabel('SUVR')
 %%
 %% DO VT
 
@@ -59,7 +83,7 @@ if calculatetrueVT
     method = {'TRUE'};
     for k = method
         current_method = k{1};
-        output_directory = [script_directory ,'OUT',project,'/VtsOUT/', current_method];
+        output_directory = fullfile(workdir_base, 'OUT', study, 'VtsOUT', current_method);
   
         if ~exist(output_directory, 'dir')
             mkdir(output_directory);
@@ -74,19 +98,19 @@ if calculateVt
     method = {predicted};
     for k = method
         current_method = k{1};
-        output_directory = [script_directory ,'OUT',project,'/VtsOUT/', current_method];
+        output_directory = fullfile(workdir_base, 'OUT', study, 'VtsOUT', current_method);
   
         if ~exist(output_directory, 'dir')
             mkdir(output_directory);
             mkdir([output_directory, '/Plots'])
         end
-        run_calculate_VT(current_method,aif_input,output_directory, petframestartstop,tac_directory,subjects, plotvt)
+        run_calculate_VT(current_method,predicted_input, output_directory, petframestartstop,tac_directory,subjects, plotvt)
     end
 end
 %%
 
-path1 = [script_directory 'OUT', project, '/VtsOUT/' method{1}];
-path2 = [script_directory 'OUT', project, '/VtsOUT/TRUE'];
+path1 = [workdir_base 'OUT/', study, '/VtsOUT/' method{1}, '/'];
+path2 = [workdir_base 'OUT/', study, '/VtsOUT/TRUE/'];
 
 plot_correlation_with_regression_line(subject, path1, path2);
 
@@ -136,8 +160,8 @@ function plot_correlation_with_regression_line(subject, path1, path2)
     text(0.1, 0.9, equation, 'Units', 'normalized', 'FontSize', 12);
 
     % Adding labels and title
-    xlabel('Values from first data set');
-    ylabel('Values from second data set');
+    xlabel('true Vt');
+    ylabel('predicted Vt');
     title(sprintf('Scatter plot with regression line for subject %d', subject));
     set(gca,'FontSize',20)
     set(gcf,'Color','w')

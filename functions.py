@@ -175,7 +175,7 @@ def run_calculate_VT(method, input, output_directory, petframestartstop, tac_dir
         # Use a different variable for the loop iteration
         current_predicted_input = os.path.join(input, f'{i}')
 
-        if method == 'AIF':
+        if method == 'TRUE':
             plasma_lin_filename = os.path.join(input, f'{i}.txt')
         else:
             plasma_lin_filename = os.path.join(input, f'{i}_mean.txt')
