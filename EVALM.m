@@ -1,7 +1,7 @@
 clear all;
 
 % Define the institution and predicted variable
-institution = 'harvard';  % 'harvard' or 'kcl'
+institution = 'kcl';  % 'harvard' or 'kcl'
 predicted = 'AIF';
 
 % Set the study name based on the institution
@@ -120,16 +120,16 @@ num_subjects = numel(subjectlist);
 
 for i = 1:num_subjects
    
-    subplot(2,round(num_subjects/2),i)
+    %subplot(2,round(num_subjects/2),i)
     subject = subjectlist(i);
     
     true_signal = all_true_signal(:,i);
     predicted_signal =  all_pred_signal(:,i);
     
 
-    plot(true_signal(15:end), 'DisplayName', 'True Signal', 'LineWidth', 2);
+    plot(true_signal(1:end), 'DisplayName', 'True Signal', 'LineWidth', 2);
     hold on;
-    plot(predicted_signal(15:end), 'DisplayName', 'Predicted Signal', 'LineWidth', 2);
+    plot(predicted_signal(1:end), 'DisplayName', 'Predicted Signal', 'LineWidth', 2);
     hold off;
     legend('show');
     title([predicted,':Subj. ', num2str(subject)]);
@@ -146,7 +146,7 @@ for i = 1:num_subjects
     hold off
 end
 
-
+%%
     figure(2)
 for i = 1:num_subjects
     subplot(2,round(num_subjects/2),i)   
@@ -182,6 +182,124 @@ for i = 1:num_subjects
     set(gcf, 'Color', 'w');
 
 end
+
+%%
+figure(3)
+
+% First subplot: All subjects all ROI
+subplot(1,3,1)
+true_vt_values = all_true_vt_values(:);
+predicted_vt_values = all_predicted_vt_values(:);
+scatter(true_vt_values, predicted_vt_values, 'filled');
+hold on;
+
+% Adding regression line
+p = polyfit(true_vt_values, predicted_vt_values, 1);
+y_pred = polyval(p, true_vt_values);
+plot(true_vt_values, y_pred, 'r-', 'LineWidth', 2);
+
+% Plotting identity line
+min_val = min([true_vt_values; predicted_vt_values]);
+max_val = max([true_vt_values; predicted_vt_values]);
+plot([min_val, max_val], [min_val, max_val], 'k--', 'LineWidth', 2);
+
+% Equation of the regression line
+equation = sprintf('y = %.5fx + %.5f', p(1), p(2));
+
+% Calculate R²
+% Calculate R²
+SS_res = sum((predicted_vt_values - y_pred).^2);
+SS_tot = sum((predicted_vt_values - mean(predicted_vt_values)).^2);
+R2 = 1 - (SS_res / SS_tot);
+
+
+% Adding equation and R² to the plot
+text(0.1, 0.9, equation, 'Units', 'normalized', 'FontSize', 20);
+text(0.1, 0.8, sprintf('R^2 = %.5f', R2), 'Units', 'normalized', 'FontSize', 20);
+
+% Adding labels and title
+xlabel('True VT');
+ylabel('Predicted VT');
+title('All subjects all ROI');
+set(gca, 'FontSize', 20);
+set(gcf, 'Color', 'w');
+hold off;
+
+% Second subplot: All ROI (avg subjects)
+subplot(1,3,2)
+true_vt_values = mean(all_true_vt_values,2);
+predicted_vt_values = mean(all_predicted_vt_values,2);
+scatter(true_vt_values, predicted_vt_values, 'filled');
+hold on;
+
+% Adding regression line
+p = polyfit(true_vt_values, predicted_vt_values, 1);
+y_pred = polyval(p, true_vt_values);
+plot(true_vt_values, y_pred, 'r-', 'LineWidth', 2);
+
+% Plotting identity line
+min_val = min([true_vt_values; predicted_vt_values]);
+max_val = max([true_vt_values; predicted_vt_values]);
+plot([min_val, max_val], [min_val, max_val], 'k--', 'LineWidth', 2);
+
+% Equation of the regression line
+equation = sprintf('y = %.5fx + %.5f', p(1), p(2));
+
+SS_res = sum((predicted_vt_values - y_pred).^2);
+SS_tot = sum((predicted_vt_values - mean(predicted_vt_values)).^2);
+R2 = 1 - (SS_res ./ SS_tot);
+
+% Adding equation and R² to the plot
+text(0.1, 0.9, equation, 'Units', 'normalized', 'FontSize', 20);
+text(0.1, 0.8, sprintf('R^2 = %.5f', R2), 'Units', 'normalized', 'FontSize', 20);
+
+% Adding labels and title
+xlabel('True VT');
+ylabel('Predicted VT');
+title('All ROI (avg subjects)');
+set(gca, 'FontSize', 20);
+set(gcf, 'Color', 'w');
+hold off;
+
+% Third subplot: All subjects (avg. ROIs)
+subplot(1,3,3)
+true_vt_values = mean(all_true_vt_values,1);
+predicted_vt_values = mean(all_predicted_vt_values,1);
+scatter(true_vt_values, predicted_vt_values, 'filled');
+hold on;
+
+% Adding regression line
+p = polyfit(true_vt_values, predicted_vt_values, 1);
+y_pred = polyval(p, true_vt_values);
+plot(true_vt_values, y_pred, 'r-', 'LineWidth', 2);
+
+% Plotting identity line
+min_val = min([true_vt_values; predicted_vt_values]);
+max_val = max([true_vt_values; predicted_vt_values]);
+plot([min_val, max_val], [min_val, max_val], 'k--', 'LineWidth', 2);
+
+% Equation of the regression line
+equation = sprintf('y = %.5fx + %.5f', p(1), p(2));
+
+% Calculate R²
+SS_res = sum((predicted_vt_values - y_pred).^2);
+SS_tot = sum((predicted_vt_values - mean(predicted_vt_values)).^2);
+R2 = 1 - (SS_res / SS_tot);
+
+% Adding equation and R² to the plot
+text(0.1, 0.9, equation, 'Units', 'normalized', 'FontSize', 20);
+text(0.1, 0.8, sprintf('R^2 = %.5f', R2), 'Units', 'normalized', 'FontSize', 20);
+
+% Adding labels and title
+xlabel('True VT');
+ylabel('Predicted VT');
+title('All subjects (avg. ROIs)');
+set(gca, 'FontSize', 20);
+set(gcf, 'Color', 'w');
+hold off;
+
+
+
 
 % Function to calculate Logan VT
 function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target_filename, tstar, output_filename, output_directory, plotvt)
