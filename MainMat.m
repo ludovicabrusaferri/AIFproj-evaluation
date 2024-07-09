@@ -1,7 +1,7 @@
 clear all
 % Define the variable
-subject = 14;
-bool = 'kcl';  % or 'harvard'
+subject =5
+bool = 'harvard';  % or 'harvard'
 predicted = 'AIF';
 
 % Set the study name based on the institution
@@ -48,39 +48,27 @@ disp(workdir);
 disp('Project Directory:');
 disp(projectdir);
 
-
 fileList = dir(fullfile(true_input, '*.txt'));
 % Determine the number of subjects based on the number of files
 num_subjects = numel(fileList); 
-subjects = 0:num_subjects-1; % Make a list from 0 to 51
+
+% Extract subject numbers from filenames
+subjects = zeros(1, num_subjects);
+for i = 1:num_subjects
+    % Get the file name without the extension
+    [~, fileName, ~] = fileparts(fileList(i).name);
+    % Convert the file name to a number and store it in the subjects array
+    subjects(i) = str2double(fileName);
+end
+
 num_values = size(load(fullfile(true_input, '0.txt')),1); % Number of values in each file
 
+calculatetrueVT = true;
+calculateVt = true;
 
-calculatetrueVT =  true;
-calculateVt=true;
-
-
-
-%var1=importdata(fullfile(true_input,[sprintf('%d',subject), '.txt']));
-%var3=importdata(fullfile(uncor_input,[sprintf('%d',subject), '.txt']));
-
-%figure(11)
-%plot(var1,'LineWidth',3)
-%hold on
-%plot(var2,'--','LineWidth',3)
-%hold on
-%plot(var3,'--','LineWidth',3)
-%egend('true','estimated','input')
-%hold off
-%set(gca,'FontSize',20)
-%set(gcf,'Color','w')
-%xlabel('frames')
-%ylabel('SUVR')
-%%
-%% DO VT
-
+% Calculate true VT
 if calculatetrueVT
-    plotvt=false;
+    plotvt = false;
     method = {'TRUE'};
     for k = method
         current_method = k{1};
@@ -88,14 +76,15 @@ if calculatetrueVT
   
         if ~exist(output_directory, 'dir')
             mkdir(output_directory);
-            mkdir([output_directory, '/Plots'])
+            mkdir(fullfile(output_directory, 'Plots'));
         end
-        run_calculate_VT(current_method,true_input,output_directory, petframestartstop,tac_directory,subjects, plotvt)
+        run_calculate_VT(current_method, true_input, output_directory, petframestartstop, tac_directory, subjects, plotvt);
     end
 end
 
+% Calculate VT
 if calculateVt
-    plotvt=false;
+    plotvt = false;
     method = {predicted};
     for k = method
         current_method = k{1};
@@ -103,21 +92,19 @@ if calculateVt
   
         if ~exist(output_directory, 'dir')
             mkdir(output_directory);
-            mkdir([output_directory, '/Plots'])
+            mkdir(fullfile(output_directory, 'Plots'));
         end
-        run_calculate_VT(current_method,predicted_input, output_directory, petframestartstop,tac_directory,subjects, plotvt)
+        run_calculate_VT(current_method, predicted_input, output_directory, petframestartstop, tac_directory, subjects, plotvt);
     end
 end
-%%
 
-path1 = [workdir_base 'OUT/', study, '/VtsOUT/' method{1}, '/'];
-path2 = [workdir_base 'OUT/', study, '/VtsOUT/TRUE/'];
+% Paths for correlation plot
+path1 = fullfile(workdir_base, 'OUT', study, 'VtsOUT', method{1}, '/');
+path2 = fullfile(workdir_base, 'OUT', study, 'VtsOUT', 'TRUE', '/');
 
 plot_correlation_with_regression_line(subject, path1, path2);
 
-
-
-%% FUNCTIONS
+% FUNCTIONS
 function plot_correlation_with_regression_line(subject, path1, path2)
     % Function to read a single float value from each file
     function data = read_data_files(path, subject)
@@ -164,33 +151,28 @@ function plot_correlation_with_regression_line(subject, path1, path2)
     xlabel('true Vt');
     ylabel('predicted Vt');
     title(sprintf('Scatter plot with regression line for subject %d', subject));
-    set(gca,'FontSize',20)
-    set(gcf,'Color','w')
+    set(gca, 'FontSize', 20);
+    set(gcf, 'Color', 'w');
     hold off;
 end
-%% DO EVAL
 
-function run_calculate_VT(method,true_input,output_directory, petframestartstop,tac_directory,subjects,plotvt)
+function run_calculate_VT(method, input_path, output_directory, petframestartstop, tac_directory, subjects, plotvt)
     for i = subjects
         disp(['============ SUBJ ', num2str(i), ' and i: ', num2str(i), ' \n\n =======\n']);
-        tstar=15;
+        tstar = 15;
         frame_time_fn = fullfile(petframestartstop, [num2str(i), '.txt']);
         if strcmp(method, 'TRUE')
-            plasma_Lin_filename = fullfile(true_input, [num2str(i), '.txt']);
-        elseif strcmp(method, 'MICsub')
-            plasma_Lin_filename = fullfile(true_input,[num2str(i), '_mean.txt']);
+            plasma_Lin_filename = fullfile(input_path, [num2str(i), '.txt']);
         else
-            plasma_Lin_filename = fullfile(true_input, [num2str(i), '_mean.txt']);
+            plasma_Lin_filename = fullfile(input_path, [num2str(i), '_mean.txt']);
         end
     
-         % Check if the plasma_Lin_filename exists
+        % Check if the plasma_Lin_filename exists
         if ~exist(plasma_Lin_filename, 'file')
             disp(['File does not exist: ', plasma_Lin_filename, '. Skipping subject ', num2str(i)]);
             continue;
         end
-        
 
-        cd(tac_directory);
         cd(fullfile(tac_directory, num2str(i)));
         tacs = dir([num2str(i), '_*.txt']);
     
@@ -201,21 +183,17 @@ function run_calculate_VT(method,true_input,output_directory, petframestartstop,
     
             output_fn = fullfile(output_directory, [tac_name, '_Logan_Vt_', num2str(tstar)]);
     
-            if ~exist([output_fn, '.!txt'], 'file')
-                vt=calculate_logan_vt(frame_time_fn,reference_fn, target_fn, tstar, output_fn, output_directory, reference_fn,plotvt);
+            if ~exist([output_fn, '.txt'], 'file')
+                vt = calculate_logan_vt(frame_time_fn, reference_fn, target_fn, tstar, output_fn, output_directory, reference_fn, plotvt);
                 
-                fprintf('vt=%f\n', vt);
-                if vt<0
+                fprintf('vt = %f\n', vt);
+                if vt < 0
                     error('vt cannot be negative.');
                 end
             end
         end
-        
-        cd(tac_directory);
     end
 end
-
-
 
 function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target_filename, tstar, output_filename, output_directory, reference_name, plotvt)
     % Load data
@@ -241,24 +219,11 @@ function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target
     X_matrix = [int_ref ./ target_tac, intercept];
     Y_vector = int_target ./ target_tac;
     
-    %% AVOIDINIG DIVISION BY ZERO
-    for i = 1:2
-        if X_matrix(i) > 150 || Y_vector(i) > 150 
-            fprintf("I AM HERE")
-            X_matrix(i) = NaN;
-            Y_vector(i) = NaN;
-        end
-    end
-
-    for i = 1:size(X_matrix,1)
-        if X_matrix(i) < 0 || Y_vector(i) < 0
-            fprintf("I AM HERE")
-            X_matrix(i) = NaN;
-            Y_vector(i) = NaN;
-        end
-    end
-
-
+    % Avoid division by zero
+    %X_matrix(X_matrix > 150) = NaN;
+    %Y_vector(Y_vector > 150) = NaN;
+    %X_matrix(X_matrix < 0) = NaN;
+    %Y_vector(Y_vector < 0) = NaN;
 
     % Select data after tstar
     tstar_index = find(time >= tstar, 1, 'first');
@@ -271,12 +236,11 @@ function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target
 
     % Perform linear regression
     regression_coefficients = (weight_matrix_selected * X_selected) \ (weight_matrix_selected * Y_selected);
-    
     Vt = regression_coefficients(1);
 
     % Check for NaN in Vt
     %if isnan(Vt)
-    %    error('Vt is NaN. Check input values!');
+     %   error('Vt is NaN. Check input values!');
     %end
 
     % Plot figures if specified
@@ -295,14 +259,12 @@ function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target
         saveas(h, fullfile(output_directory, 'Plots', ['_Logan_Vt_', num2str(tstar), '.png']), 'png');
         close(h);
         disp('Figures DONE..');
-        
     end
 
     % Save Vt to a text file
     fid = fopen([output_filename, '.txt'], 'w');
     fprintf(fid, '%f\n', Vt);
     fclose(fid);
-
 end
 
 
