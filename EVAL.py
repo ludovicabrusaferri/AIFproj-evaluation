@@ -198,18 +198,44 @@ def plot_correlation_with_regression_line(subject, path1, path2):
     plt.text(0.5, 0.9, equation, fontsize=12, transform=plt.gca().transAxes)
 
     # Adding labels and title
-    plt.xlabel('Values from first data set')
-    plt.ylabel('Values from second data set')
+    plt.xlabel('True VT')
+    plt.ylabel('Predicted VT')
     plt.title(f'Scatter plot with regression line for subject {subject}')
 
     plt.show()
 
+def plot_signals(true_input, uncor_input, predicted_input, i):
+    # Load the signals
+    true_input = os.path.join(true_input, f'{i}.txt')
+    uncor_input = os.path.join(uncor_input, f'{i}.txt')
+    predicted_input = os.path.join(predicted_input, f'{i}_mean.txt')
+
+    true_signal = np.loadtxt(true_input, delimiter=',')
+    uncor_signal = np.loadtxt(uncor_input, delimiter=',')
+    predicted_signal = np.loadtxt(predicted_input, delimiter=',')
+
+    # Plot the signals
+    plt.figure()
+    plt.plot(true_signal, label='True Signal', linewidth=3)
+    plt.plot(uncor_signal, label='Uncorrected Signal', linestyle='--', linewidth=3)
+    plt.plot(predicted_signal, label='Predicted Signal', linestyle='--', linewidth=3)
+
+    plt.legend()
+    plt.xlabel('Index')
+    plt.ylabel('Signal Value')
+    plt.title(f'Signal Comparison; subject {i}')
+    plt.grid(True)
+    plt.show()
+
+    # Save the plot
+    plt.savefig('signal_comparison.png')
 
 def main():
     # Define the variables
-    subject = 14
-    institution = 'kcl'  # or 'kcl'
-    predicted = 'AIF'
+    subject = 5
+
+    institution = 'harvard'  # or 'kcl'
+    predicted = 'IDIF'
 
     # Set the study name based on the institution
     if institution == 'harvard':
@@ -221,6 +247,7 @@ def main():
     base_path = os.path.join('/Users/e410377/Desktop/Ludo/AlexLudo/', study, '')
 
     true_input_base = os.path.join(base_path, 'patient_data/metabolite_corrected_signal_data/')
+    uncor_input_base = os.path.join(base_path, 'patient_data/signal_data/')
     tac_directory_base = os.path.join(base_path, 'patient_data/time_activity_curves/')
     petframestartstop_base = os.path.join(base_path, 'patient_data/PETframestartstop/')
     workdir_base = '/Users/e410377/Desktop/AIFproj-evaluation/'
@@ -234,6 +261,7 @@ def main():
     # Set paths based on the value of 'institution'
     predicted_input = predicted_input_base
     true_input = true_input_base
+    uncor_input = uncor_input_base
     tac_directory = tac_directory_base
     petframestartstop = petframestartstop_base
     workdir = workdir_base
@@ -254,7 +282,9 @@ def main():
 
     num_values = np.loadtxt(os.path.join(true_input, '0.txt')).shape[0]  # Number of values in each file
 
-    calculatetrueVT = True
+    plot_signals(true_input, uncor_input, predicted_input, subject)
+
+    calculatetrueVT = False
     calculateVT = True
 
     # Calculate true VT
@@ -268,10 +298,11 @@ def main():
                 os.makedirs(os.path.join(output_directory, 'Plots'))
             run_calculate_VT(method, true_input, output_directory, petframestartstop, tac_directory, subjects, plotvt)
 
+    methods = [predicted]
     # Calculate VT
     if calculateVT:
         plotvt = False
-        methods = [predicted]
+        #methods = [predicted]
         for method in methods:
             output_directory = os.path.join(workdir_base, 'OUT', study, 'VtsOUT', method)
             if not os.path.exists(output_directory):
@@ -284,6 +315,7 @@ def main():
     path2 = os.path.join(workdir_base, 'OUT', study, 'VtsOUT', 'TRUE', '')
 
     plot_correlation_with_regression_line(subject, path1, path2)
+
 
 if __name__ == "__main__":
     main()
