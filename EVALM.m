@@ -120,16 +120,16 @@ num_subjects = numel(subjectlist);
 
 for i = 1:num_subjects
    
-    %subplot(2,round(num_subjects/2),i)
+    subplot(2,round(num_subjects/2),i)
     subject = subjectlist(i);
     
     true_signal = all_true_signal(:,i);
     predicted_signal =  all_pred_signal(:,i);
     
 
-    plot(true_signal(1:end), 'DisplayName', 'True Signal', 'LineWidth', 2);
+    plot(true_signal(15:end), 'DisplayName', 'True Signal', 'LineWidth', 2);
     hold on;
-    plot(predicted_signal(1:end), 'DisplayName', 'Predicted Signal', 'LineWidth', 2);
+    plot(predicted_signal(15:end), 'DisplayName', 'Predicted Signal', 'LineWidth', 2);
     hold off;
     legend('show');
     title([predicted,':Subj. ', num2str(subject)]);
