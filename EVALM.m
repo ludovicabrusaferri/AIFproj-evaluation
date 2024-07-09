@@ -1,8 +1,7 @@
 clear all;
 
-% Define the subject and settings
-subject = 47;
-institution = 'kcl';  % 'harvard' or 'kcl'
+% Define the institution and predicted variable
+institution = 'harvard';  % 'harvard' or 'kcl'
 predicted = 'AIF';
 
 % Set the study name based on the institution
@@ -24,136 +23,165 @@ projectdir_base = fullfile(workdir_base, study, '/');
 % Predicted input path based on the institution
 switch institution
     case 'harvard'
-        predicted_input_base = fullfile(base_path, 'RESULTSNEW/metabolite_corrector_aif/test/', num2str(subject),'/', predicted, '/');
+        predicted_input_base = fullfile(base_path, 'RESULTSNEW/metabolite_corrector_aif/test/', predicted, '/');
     case 'kcl'
         predicted_input_base = fullfile(workdir_base, 'OUT', study, predicted, '/test/');
 end
 
-% Set paths
-true_input = true_input_base;
-predicted_input = predicted_input_base;
-tac_directory = tac_directory_base;
-petframestartstop = petframestartstop_base;
-workdir = workdir_base;
-projectdir = projectdir_base;
+% Find subjects in the predicted input base directory
+files = dir(fullfile(predicted_input_base, '*.txt'));
+subjects = unique(arrayfun(@(x) strtok(x.name, '_'), files, 'UniformOutput', false));
+subjectlist = cellfun(@str2double, subjects);
 
-% Plot the true and predicted input for the given subject
-true_input_filename = fullfile(true_input, [num2str(subject), '.txt']);
-predicted_input_filename = fullfile(predicted_input, [num2str(subject), '_mean.txt']);
+disp('Subject List:');
+disp(subjectlist);
 
-true_signal = load(true_input_filename);
-predicted_signal = load(predicted_input_filename);
+% Initialize storage for all VT values
+all_true_vt_values = [];
+all_predicted_vt_values = [];
+all_true_signal = [];
+all_pred_signal = [];
 
 
-% Calculate VT for all TACs for the given subject using both true and predicted blood data
-tstar = 15; % You can adjust this as needed
-
-% Define paths for TACs and frame times
-tac_path = fullfile(tac_directory, num2str(subject));
-frame_time_fn = fullfile(petframestartstop, [num2str(subject), '.txt']);
-
-% Load all TAC files for the subject
-tac_files = dir(fullfile(tac_path, [num2str(subject), '_*.txt']));
-num_tacs = length(tac_files);
-
-true_vt_values = zeros(num_tacs, 1);
-predicted_vt_values = zeros(num_tacs, 1);
-
-for i = 1:num_tacs
-    tac_filename = tac_files(i).name;
-    target_fn = fullfile(tac_path, tac_filename);
-    output_true_fn = fullfile(workdir_base, 'OUT', study, 'VtsOUT', 'TRUE', [tac_filename, '_Logan_Vt_', num2str(tstar)]);
-    output_pred_fn = fullfile(workdir_base, 'OUT', study, 'VtsOUT', predicted, [tac_filename, '_Logan_Vt_', num2str(tstar)]);
+% Loop over each subject
+for subj_idx = 1:length(subjectlist)
+    subject = subjects{subj_idx};
     
-    % Create directories if they do not exist
-    output_true_dir = fileparts(output_true_fn);
-    output_pred_dir = fileparts(output_pred_fn);
+    % Set paths
+    true_input = true_input_base;
+    predicted_input = predicted_input_base;
+    tac_directory = tac_directory_base;
+    petframestartstop = petframestartstop_base;
+    workdir = workdir_base;
+    projectdir = projectdir_base;
+
+    % Load the true and predicted input for the given subject
+    true_input_filename = fullfile(true_input, [num2str(subject), '.txt']);
+    predicted_input_filename = fullfile(predicted_input, [num2str(subject), '_mean.txt']);
     
-    if ~exist(output_true_dir, 'dir')
-        mkdir(output_true_dir);
+    true_signal = load(true_input_filename);
+    predicted_signal = load(predicted_input_filename);
+
+    % Calculate VT for all TACs for the given subject using both true and predicted blood data
+    tstar = 15; % You can adjust this as needed
+
+    % Define paths for TACs and frame times
+    tac_path = fullfile(tac_directory, num2str(subject));
+    frame_time_fn = fullfile(petframestartstop, [num2str(subject), '.txt']);
+
+    % Load all TAC files for the subject
+    tac_files = dir(fullfile(tac_path, [num2str(subject), '_*.txt']));
+    num_tacs = length(tac_files);
+
+    true_vt_values = zeros(num_tacs, 1);
+    predicted_vt_values = zeros(num_tacs, 1);
+
+    for i = 1:num_tacs
+        tac_filename = tac_files(i).name;
+        target_fn = fullfile(tac_path, tac_filename);
+        output_true_fn = fullfile(workdir_base, 'OUT', study, 'VtsOUT', 'TRUE', [tac_filename, '_Logan_Vt_', num2str(tstar)]);
+        output_pred_fn = fullfile(workdir_base, 'OUT', study, 'VtsOUT', predicted, [tac_filename, '_Logan_Vt_', num2str(tstar)]);
+
+        % Create directories if they do not exist
+        output_true_dir = fileparts(output_true_fn);
+        output_pred_dir = fileparts(output_pred_fn);
+
+        if ~exist(output_true_dir, 'dir')
+            mkdir(output_true_dir);
+        end
+
+        if ~exist(output_pred_dir, 'dir')
+            mkdir(output_pred_dir);
+        end
+
+        % Calculate VT using true blood data
+        true_vt = calculate_logan_vt(frame_time_fn, true_input_filename, target_fn, tstar, output_true_fn, workdir_base, false);
+        true_vt_values(i) = true_vt;
+
+        % Calculate VT using predicted blood data
+        predicted_vt = calculate_logan_vt(frame_time_fn, predicted_input_filename, target_fn, tstar, output_pred_fn, workdir_base, false);
+        predicted_vt_values(i) = predicted_vt;
+
+        fprintf('Subject %s, TAC %d: True VT = %f, Predicted VT = %f\n', subject, i, true_vt, predicted_vt);
     end
-    
-    if ~exist(output_pred_dir, 'dir')
-        mkdir(output_pred_dir);
-    end
 
-    
-    % Calculate VT using true blood data
-    true_vt = calculate_logan_vt(frame_time_fn, true_input_filename, target_fn, tstar, output_true_fn, workdir_base,  false);
-    true_vt_values(i) = true_vt;
-    
-    % Calculate VT using predicted blood data
-    predicted_vt = calculate_logan_vt(frame_time_fn, predicted_input_filename, target_fn, tstar, output_pred_fn, workdir_base,  false);
-    predicted_vt_values(i) = predicted_vt;
-    
-    fprintf('TAC %d: True VT = %f, Predicted VT = %f\n', i, true_vt, predicted_vt);
+    % Store all VT values
+    all_true_vt_values = [all_true_vt_values, true_vt_values];
+    all_predicted_vt_values = [all_predicted_vt_values, predicted_vt_values];
+    all_true_signal = [all_true_signal,true_signal];
+    all_pred_signal = [all_pred_signal,predicted_signal];
 end
 
-% Plot correlation between true VT and predicted VT
-figure(1)
+%%
+% Plot settings
 
-subplot(2,2,3)
+num_subjects = numel(subjectlist);
+ figure(1)
+
+for i = 1:num_subjects
+   
+    subplot(2,round(num_subjects/2),i)
+    subject = subjectlist(i);
+    
+    true_signal = all_true_signal(:,i);
+    predicted_signal =  all_pred_signal(:,i);
+    
+
+    plot(true_signal(15:end), 'DisplayName', 'True Signal', 'LineWidth', 2);
+    hold on;
+    plot(predicted_signal(15:end), 'DisplayName', 'Predicted Signal', 'LineWidth', 2);
+    hold off;
+    legend('show');
+    title([predicted,':Subj. ', num2str(subject)]);
+    xlabel('Time');
+    ylabel('Uptake');
+    grid on;
+    set(gca, 'FontSize', 25);
+    set(gcf, 'Color', 'w');
+    x_range = 15:length(true_signal); % Assuming true_signal and predicted_signal have the same length
+    xticks(1:length(x_range));
+    xticklabels(x_range);
+    
+    
+    hold off
+end
 
 
-plot(true_signal(15:end), 'DisplayName', 'True Signal', 'LineWidth', 2);
-hold on;
-plot(predicted_signal(15:end), 'DisplayName', 'Predicted Signal', 'LineWidth', 2);
-hold off;
-legend('show');
-title([predicted, ': Signals for Subject ', num2str(subject)]);
-xlabel('Time');
-ylabel('Uptake');
-grid on;
-set(gca, 'FontSize', 25);
-set(gcf, 'Color', 'w');
+    figure(2)
+for i = 1:num_subjects
+    subplot(2,round(num_subjects/2),i)   
+    subject = subjectlist(i);
+    true_vt_values = all_true_vt_values(:,i);
+    predicted_vt_values = all_predicted_vt_values(:,i);
+    scatter(true_vt_values, predicted_vt_values, 'filled');
+    hold on;
+    
+    % Adding regression line
+    p = polyfit(true_vt_values, predicted_vt_values, 1);
+    y_pred = polyval(p, true_vt_values);
+    plot(true_vt_values, y_pred, 'r-', 'LineWidth', 2);
+    
+    % Plotting identity line
+    min_val = min([true_vt_values; predicted_vt_values]);
+    max_val = max([true_vt_values; predicted_vt_values]);
+    plot([min_val, max_val], [min_val, max_val], 'k--', 'LineWidth', 2);
+    
+    % Equation of the regression line
+    equation = sprintf('y = %.2fx + %.2f', p(1), p(2));
+    
+    % Adding equation to the plot
+    text(0.1, 0.9, equation, 'Units', 'normalized', 'FontSize', 12);
+    
+    % Adding labels and title
+    xlabel('True VT');
+    ylabel('Predicted VT');
+    title([predicted,': Vt ', num2str(subject)]);
+    set(gca, 'FontSize', 20);
+    set(gcf, 'Color', 'w');
+    hold off;
+    set(gcf, 'Color', 'w');
 
-% Fix xticks and xticklabels starting from 15 onwards
-x_range = 15:length(true_signal); % Assuming true_signal and predicted_signal have the same length
-xticks(1:length(x_range));
-xticklabels(x_range);
-
-subplot(2,2,1)
-
-plot(true_signal, 'DisplayName', 'True Signal', 'LineWidth', 2);
-hold on;
-plot(predicted_signal, 'DisplayName', 'Predicted Signal', 'LineWidth', 2);
-hold off;
-legend('show');
-title([predicted,':Signals for Subject ', num2str(subject)]);
-xlabel('Time');
-ylabel('Uptake');
-grid on;
-set(gca, 'FontSize', 25);
-set(gcf, 'Color', 'w');
-
-hold off
-subplot(2,2,2)
-scatter(true_vt_values, predicted_vt_values, 'filled');
-hold on;
-
-% Adding regression line
-p = polyfit(true_vt_values, predicted_vt_values, 1);
-y_pred = polyval(p, true_vt_values);
-plot(true_vt_values, y_pred, 'r-', 'LineWidth', 2);
-
-% Plotting identity line
-min_val = min([true_vt_values; predicted_vt_values]);
-max_val = max([true_vt_values; predicted_vt_values]);
-plot([min_val, max_val], [min_val, max_val], 'k--', 'LineWidth', 2);
-
-% Equation of the regression line
-equation = sprintf('y = %.2fx + %.2f', p(1), p(2));
-
-% Adding equation to the plot
-text(0.1, 0.9, equation, 'Units', 'normalized', 'FontSize', 12);
-
-% Adding labels and title
-xlabel('True VT');
-ylabel('Predicted VT');
-title([predicted,': Correlation of VT for Subject ', num2str(subject)]);
-set(gca, 'FontSize', 20);
-set(gcf, 'Color', 'w');
-hold off;
+end
 
 % Function to calculate Logan VT
 function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target_filename, tstar, output_filename, output_directory, plotvt)
