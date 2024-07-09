@@ -1,6 +1,7 @@
+clear all
 % Define the variable
-subject = 5;
-bool = 'harvard';  % or 'harvard'
+subject = 14;
+bool = 'kcl';  % or 'harvard'
 predicted = 'AIF';
 
 % Set the study name based on the institution
@@ -20,7 +21,7 @@ workdir_base = '/Users/e410377/Desktop/AIFproj-evaluation/';
 projectdir_base = fullfile(workdir_base, study, '/');
 
 if strcmp(bool, 'harvard')
-    predicted_input_base = fullfile(base_path, 'RESULTSNEW/metabolite_corrector_aif/test/', '/');
+    predicted_input_base = fullfile(base_path, 'RESULTSNEW/metabolite_corrector_aif/test/', num2str(subject), '/');
 elseif strcmp(bool, 'kcl')
     predicted_input_base = fullfile(workdir_base, 'OUT', study, predicted, '/test/');
 end
@@ -55,7 +56,7 @@ subjects = 0:num_subjects-1; % Make a list from 0 to 51
 num_values = size(load(fullfile(true_input, '0.txt')),1); % Number of values in each file
 
 
-calculatetrueVT = false;
+calculatetrueVT =  true;
 calculateVt=true;
 
 
@@ -179,7 +180,7 @@ function run_calculate_VT(method,true_input,output_directory, petframestartstop,
         elseif strcmp(method, 'MICsub')
             plasma_Lin_filename = fullfile(true_input,[num2str(i), '_mean.txt']);
         else
-            plasma_Lin_filename = fullfile(true_input, num2str(i),[num2str(i), '_mean.txt']);
+            plasma_Lin_filename = fullfile(true_input, [num2str(i), '_mean.txt']);
         end
     
          % Check if the plasma_Lin_filename exists
@@ -274,9 +275,9 @@ function Vt = calculate_logan_vt(frame_time_filename, reference_filename, target
     Vt = regression_coefficients(1);
 
     % Check for NaN in Vt
-    if isnan(Vt)
-        error('Vt is NaN. Check input values!');
-    end
+    %if isnan(Vt)
+    %    error('Vt is NaN. Check input values!');
+    %end
 
     % Plot figures if specified
     if plotvt
