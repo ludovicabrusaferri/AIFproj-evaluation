@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 from scipy.stats import linregress
 from sklearn.preprocessing import StandardScaler
 import nibabel as nib
+import spams
+from sklearn.linear_model import Lasso
 
-
-
-def load_data(true_value_file_path, metuncor_path):
+def load_data(true_value_file_path, metuncor_path, idif_path):
     if os.path.exists(true_value_file_path):
         true_values = np.loadtxt(true_value_file_path)
         print("Loaded true values")
@@ -21,7 +21,14 @@ def load_data(true_value_file_path, metuncor_path):
     else:
         raise FileNotFoundError(f"Uncorrected value file path does not exist: {metuncor_path}")
 
-    return true_values, uncor_values
+    if os.path.exists(idif_path):
+        idif_values = np.loadtxt(idif_path)
+        print("Loaded uncorrected values")
+    else:
+        raise FileNotFoundError(f"Uncorrected value file path does not exist: {metuncor_path}")
+
+
+    return true_values, uncor_values, idif_values
 
 
 def load_and_process_signals(subject, num_timestamps, workdir, visitnumber):
@@ -142,7 +149,7 @@ def calculate_and_plot_correlations(data_matrix, flattened_true_values_normalize
     # Test to ensure sorted_indices has the same dimension as the flattened image
     print(f"Length of sorted indices: {len(sorted_indices)}")
     print(f"Original data matrix shape: {data_matrix.shape}")
-    return sorted_indices[:100], nan_indices # Return the best 200 indices
+    return sorted_indices[:100], best_signal_normalized # Return the best 200 indices
 
 
 def create_binary_mask(image_shape, best_indices):
@@ -177,7 +184,7 @@ def plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamp
     print("Saved flattened signals plot")
 
 
-def save_mask_overlay(t1_img_path, mask_path, output_path,masktype, subject):
+def save_mask_overlay(t1_img_path, mask_path, output_path, masktype, subject, calculate_best_slices=True, coronal_slice_idx=None, sagittal_slice_idx=None, axial_slice_idx=None):
     # Load T1 image and mask
     t1_img = nib.load(t1_img_path).get_fdata()
     mask_img = nib.load(mask_path).get_fdata()
@@ -190,33 +197,39 @@ def save_mask_overlay(t1_img_path, mask_path, output_path,masktype, subject):
     if mask_img.ndim == 4 and mask_img.shape[-1] == 1:
         mask_img = mask_img[..., 0]
 
-    # Find the slices with the most mask voxels for each view
-    coronal_sums = np.sum(mask_img, axis=(0, 2))
-    sagittal_sums = np.sum(mask_img, axis=(1, 2))
-    axial_sums = np.sum(mask_img, axis=(0, 1))
+    # Calculate the best slices if requested
+    if calculate_best_slices:
+        coronal_sums = np.sum(mask_img, axis=(0, 2))
+        sagittal_sums = np.sum(mask_img, axis=(1, 2))
+        axial_sums = np.sum(mask_img, axis=(0, 1))
 
-    best_coronal_slice_idx = np.argmax(coronal_sums)
-    best_sagittal_slice_idx = np.argmax(sagittal_sums)
-    best_axial_slice_idx = np.argmax(axial_sums)
+        best_coronal_slice_idx = np.argmax(coronal_sums)
+        best_sagittal_slice_idx = np.argmax(sagittal_sums)
+        best_axial_slice_idx = np.argmax(axial_sums)
+    else:
+        best_coronal_slice_idx = coronal_slice_idx
+        best_sagittal_slice_idx = sagittal_slice_idx
+        best_axial_slice_idx = axial_slice_idx
 
     # Create the overlay plot
     fig, axs = plt.subplots(1, 3, figsize=(20, 10))
 
     # Coronal view
     axs[0].imshow(t1_img[:, best_coronal_slice_idx, :].T, cmap='gray', origin='lower')
-    axs[0].imshow(mask_img[:, best_coronal_slice_idx, :].T, cmap='jet', alpha=0.5, origin='lower')
+    axs[0].imshow(mask_img[:, best_coronal_slice_idx, :].T, cmap='jet', alpha=0.6, origin='lower')
+
     axs[0].set_title(f'Coronal Slice {best_coronal_slice_idx}')
     axs[0].axis('off')
 
     # Sagittal view
     axs[1].imshow(t1_img[best_sagittal_slice_idx, :, :].T, cmap='gray', origin='lower')
-    axs[1].imshow(mask_img[best_sagittal_slice_idx, :, :].T, cmap='jet', alpha=0.5, origin='lower')
+    axs[1].imshow(mask_img[best_sagittal_slice_idx, :, :].T, cmap='jet', alpha=0.6, origin='lower')
     axs[1].set_title(f'Sagittal Slice {best_sagittal_slice_idx}')
     axs[1].axis('off')
 
     # Axial view
     axs[2].imshow(t1_img[:, :, best_axial_slice_idx].T, cmap='gray', origin='lower')
-    axs[2].imshow(mask_img[:, :, best_axial_slice_idx].T, cmap='jet', alpha=0.5, origin='lower')
+    axs[2].imshow(mask_img[:, :, best_axial_slice_idx].T, cmap='jet', alpha=0.6, origin='lower')
     axs[2].set_title(f'Axial Slice {best_axial_slice_idx}')
     axs[2].axis('off')
 
@@ -226,26 +239,129 @@ def save_mask_overlay(t1_img_path, mask_path, output_path,masktype, subject):
     plt.close()
     print(f"Saved mask overlay image: {overlay_path}")
 
+    # Return the best slice indices
+    return best_coronal_slice_idx, best_sagittal_slice_idx, best_axial_slice_idx
+
+
+
+def create_and_save_weighted_mask(flattened_images_matrix, coef, original_shape, reference_img_path, plotsave, subject, t1_img_path, best_coronal_slice_idx, best_sagittal_slice_idx, best_axial_slice_idx):
+    # Get the 100 highest weights
+    highest_weight_indices = np.argsort(np.abs(coef))[::-1][:100]
+
+    # Create a binary mask
+    mask = np.zeros(flattened_images_matrix.shape[1], dtype=int)
+    mask[highest_weight_indices] = 1
+    mask = mask.reshape(original_shape)
+
+    # Save the mask as a NIfTI file
+    output_mask_path = os.path.join(plotsave, f'subject_{subject}_highest_weight_maskSPARSE.nii.gz')
+    save_nifti_mask(mask, reference_img_path, output_mask_path)
+    print("Saved mask from highest weights")
+
+    # Save the overlay of the mask on T1 image
+    save_mask_overlay(t1_img_path, output_mask_path, plotsave, 'highest_weight', subject, False, best_coronal_slice_idx, best_sagittal_slice_idx, best_axial_slice_idx)
+
+def perform_sparse_regression(flattened_signals_matrix, true_values, alpha=0.1, fit_intercept=False):
+    print("Performing sparse regression...")
+    # Train dictionary using Lasso for dictionary learning
+    lasso = Lasso(alpha=alpha)
+    lasso.fit(flattened_signals_matrix, true_values)
+    sparse_codes = lasso.predict(flattened_signals_matrix)
+    coef = lasso.coef_
+    return sparse_codes, coef
+
+
+def plot_sparse_regression_results(sparse_codes, true_values, plotsave, subject, type):
+    plt.figure(figsize=(20, 10))
+
+    # Compute the estimated signal using the sparse codes and dictionary
+    estimated_signal = sparse_codes
+
+    # Plot the true signal vs the estimated signal
+    plt.plot(true_values, label='True Signal', linestyle='--')
+    plt.plot(estimated_signal, label='Estimated Signal', linestyle='-')
+    plt.title(f'Subject {subject} - Sparse Regression Estimated Signal vs True Signal')
+    plt.xlabel('Index')
+    plt.ylabel('Signal Value')
+    plt.legend()
+
+    plot_path = os.path.join(plotsave, f'subject_{subject}_sparse_regression_comparison_{type}.jpg')
+    plt.savefig(plot_path, format='jpg')
+    plt.close()
+    print("Saved sparse regression comparison plot")
+
+def plot_idif_results(idif, true_values,best_signal, plotsave, subject, type):
+    plt.figure(figsize=(20, 10))
+
+    # Compute the estimated signal using the sparse codes and dictionary
+    estimated_signal = idif
+
+    # Plot the true signal vs the estimated signal
+    plt.plot(true_values, label='True Signal', linestyle='--')
+    plt.plot(estimated_signal, label='IDIF Signal', linestyle='-')
+
+    plt.title(f'Subject {subject} - IDIF vs True Signal')
+    plt.xlabel('Index')
+    plt.ylabel('Signal Value')
+    plt.legend()
+
+    plot_path = os.path.join(plotsave, f'subject_{subject}_idif_comparison_{type}.jpg')
+    plt.savefig(plot_path, format='jpg')
+    plt.close()
+    print("Saved sparse regression comparison plot")
 
 def main():
 
 
-    subject = 41
-    testindex = 42
-    visitnumber=0
-    num_timestamps = 26
 
-    # Define file paths
-    plotsave = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/figures'
-    true_value_file_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/metabolite_corrected_signal_data/{subject}.txt'
-    metuncor_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/signal_data/{subject}.txt'
-    t1_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/T1img_data/{subject}/{subject}.nii.gz'
-    image_path = '/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data'
-    reference_img_path = f'/{image_path}/{subject}/{subject}_0000.nii.gz'
-    autoencoder_path = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/autoencoder/test/test'
+
+    # Define a boolean to indicate the source of data
+    is_kcl = False  # Set this to False if the data is from Harvard
+
+    if is_kcl:
+        subject = 41
+        testindex = 42
+        visitnumber=0
+        num_timestamps = 26
+    else:
+        subject = 7
+        testindex = 5
+        visitnumber=0
+        num_timestamps = 28
+
+    if is_kcl:
+        # KCL paths
+        plotsave = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/figures'
+        idif_value_file_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_derived_input_function_signal_data/{subject}.txt'
+        true_value_file_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/metabolite_corrected_signal_data/{subject}.txt'
+        metuncor_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/signal_data/{subject}.txt'
+        t1_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/T1img_data/{subject}/{subject}.nii.gz'
+        image_path = '/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedOriginalDataKCL_ALL/patient_data/image_data'
+        reference_img_path = f'/{image_path}/{subject}/{subject}_0000.nii.gz'
+        autoencoder_path = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedOriginalDataKCL_ALL/autoencoder/test/test'
+    else:
+        # Harvard paths
+        plotsave = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedAIDataMarco/figures'
+        idif_value_file_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedAIDataMarco/patient_data/image_derived_input_function_signal_data/{subject}.txt'
+        true_value_file_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedAIDataMarco/patient_data/metabolite_corrected_signal_data/{subject}.txt'
+        metuncor_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedAIDataMarco/patient_data/signal_data/{subject}.txt'
+        #t1_img_path = f'/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedAIDataMarco/patient_data/T1img_data/{subject}/{subject}.nii.gz'
+        image_path = '/Users/e410377/Desktop/Ludo/AlexLudo/ReformattedAIDataMarco/patient_data/image_data'
+        reference_img_path = f'/{image_path}/{subject}/{subject}_0000.nii.gz'
+        autoencoder_path = '/Users/e410377/Desktop/AIFproj-evaluation/OUT/ReformattedAIDataMarco/autoencoder/test/test'
+
+    # Now you can use these paths in your code
+    print(f"Plot save path: {plotsave}")
+    print(f"IDIF value file path: {idif_value_file_path}")
+    print(f"True value file path: {true_value_file_path}")
+    print(f"Metabolite uncorrected path: {metuncor_path}")
+    #print(f"T1 image path: {t1_img_path}")
+    print(f"Reference image path: {reference_img_path}")
+    print(f"Autoencoder path: {autoencoder_path}")
+
 
     # Load true and uncorrected values
-    true_values, uncor_values = load_data(true_value_file_path, metuncor_path)
+    true_values, uncor_values , idif_values = load_data(true_value_file_path, metuncor_path, idif_value_file_path)
 
     # Load and process signals
     flattened_signals_matrix, original_shapes_signals = load_and_process_signals(testindex, num_timestamps, autoencoder_path, visitnumber)
@@ -260,12 +376,13 @@ def main():
     flattened_images_matrix_normalized = normalize_data(flattened_images_matrix)
     true_values_normalized = normalize_data(true_values.reshape(-1, 1)).flatten()
     uncor_values_normalized = normalize_data(uncor_values.reshape(-1, 1)).flatten()
+    idif_values_normalized = normalize_data(idif_values.reshape(-1, 1)).flatten()
 
     # Plot hidden layer signals
     plot_hidden_layer_signals(flattened_signals_matrix_normalized, num_timestamps, plotsave, subject)
 
     # Calculate and plot correlations for latent space signals
-    calculate_and_plot_correlations(flattened_signals_matrix_normalized, true_values_normalized, uncor_values_normalized, 'latent', plotsave, subject)
+    n,  best_vae_index= calculate_and_plot_correlations(flattened_signals_matrix_normalized, true_values_normalized, uncor_values_normalized, 'latent', plotsave, subject)
 
     # Calculate and plot correlations for images and get the best 100 indices
     best_image_indices, nan_indices = calculate_and_plot_correlations(flattened_images_matrix_normalized, true_values_normalized, uncor_values_normalized, 'image', plotsave, subject)
@@ -276,8 +393,29 @@ def main():
 
     output_mask_path = os.path.join(plotsave, f'subject_{subject}_best_image_correlations_mask.nii.gz')
     save_nifti_mask(binary_mask, reference_img_path, output_mask_path)
-    save_mask_overlay(t1_img_path, output_mask_path, plotsave, 'bestcorr', subject)
 
+    if is_kcl:
+        best_coronal_slice_idx, best_sagittal_slice_idx, best_axial_slice_idx = save_mask_overlay(t1_img_path, output_mask_path, plotsave, 'bestcorr', subject)
+
+
+        # Perform sparse regression
+    sparse_codes, coef_VAE = perform_sparse_regression(flattened_signals_matrix, true_values)
+
+    # Plot sparse regression results
+    plot_sparse_regression_results(sparse_codes, true_values, plotsave, subject, 'VAE')
+
+
+    # Perform sparse regression for images
+    sparse_codes_img, coef_img = perform_sparse_regression(flattened_images_matrix, true_values)
+
+    # Plot sparse regression results for images
+    plot_sparse_regression_results(sparse_codes_img, true_values, plotsave, subject, 'IMG')
+
+    if is_kcl:
+        # Create and save weighted mask
+        create_and_save_weighted_mask(flattened_images_matrix, coef_img, original_shapes_images[0], reference_img_path, plotsave, subject, t1_img_path, best_coronal_slice_idx, best_sagittal_slice_idx, best_axial_slice_idx)
+
+    plot_idif_results(idif_values_normalized, true_values_normalized,best_vae_index, plotsave, subject, 'VAE')
 
 if __name__ == "__main__":
     main()
